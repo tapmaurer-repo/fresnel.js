@@ -115,7 +115,7 @@
     gap: 8px;
   }
 
-  .refresh-btn, .github-btn, .coffee-btn {
+  .refresh-btn, .github-btn, .coffee-btn, .info-btn {
     appearance: none;
     display: flex;
     align-items: center;
@@ -133,11 +133,11 @@
     text-decoration: none;
     transition: border-color 0.15s, color 0.15s;
   }
-  .refresh-btn:hover, .github-btn:hover, .coffee-btn:hover {
+  .refresh-btn:hover, .github-btn:hover, .coffee-btn:hover, .info-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
   }
-  .refresh-btn svg, .github-btn svg, .coffee-btn svg {
+  .refresh-btn svg, .github-btn svg, .coffee-btn svg, .info-btn svg {
     width: 14px;
     height: 14px;
   }
@@ -527,6 +527,89 @@
   .copy-btn.copied { border-color: #4ade80; color: #4ade80; background: rgba(74, 222, 128, 0.08); }
   .modal-close-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* ─────────── INSTRUCTIONS CONTENT ─────────── */
+  .steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    padding: 14px 0 14px 54px;
+    position: relative;
+    border-bottom: 1px solid var(--stroke);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--paper);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 14px;
+    font-family: var(--pixel);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    padding: 3px 8px;
+    border: 1px solid rgba(222, 79, 34, 0.4);
+    border-radius: 2px;
+    background: rgba(222, 79, 34, 0.06);
+    min-width: 38px;
+    text-align: center;
+  }
+  .steps li code {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(222, 79, 34, 0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid rgba(222, 79, 34, 0.2);
+  }
+  .steps li b {
+    font-weight: 600;
+    color: var(--paper);
+  }
+  .steps li .step-aside {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--dim);
+  }
+  .warning-callout {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border: 1px solid rgba(222, 79, 34, 0.4);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    background: rgba(222, 79, 34, 0.05);
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--paper);
+  }
+  .warning-callout .warning-head {
+    font-family: var(--pixel);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .warning-callout code {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(222, 79, 34, 0.1);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
   .browser-notice {
     position: fixed;
     top: 50%; left: 50%;
@@ -571,7 +654,7 @@
   <div class="bg-vignette"></div>
 
   <header class="header">
-    <span class="brand">FRESNEL</span>
+    <span class="brand">FRESNEL.JS</span>
     <div class="header-right-group">
       <span class="header-right">Photo <a id="photo-credit-link" href="#" target="_blank" rel="noopener"></a> / Unsplash</span>
       <button class="refresh-btn" id="refresh-bg" type="button" title="Switch background" aria-label="Switch background">
@@ -587,6 +670,13 @@
           <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
         </svg>
       </a>
+      <button class="info-btn" id="info-open" type="button" title="How to use" aria-label="How to use">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" x2="12" y1="16" y2="12"/>
+          <line x1="12" x2="12.01" y1="8" y2="8"/>
+        </svg>
+      </button>
       <a class="coffee-btn" href="https://www.paypal.com/paypalme/tapmaurer" target="_blank" rel="noopener" title="Buy me a coffee" aria-label="Buy me a coffee">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
@@ -649,6 +739,54 @@
       <div class="modal-footer">
         <button class="modal-close-btn" id="modal-close">Close</button>
         <button class="copy-btn" id="copy-btn">Copy code</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-scrim" id="info-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-kicker">// getting started</span>
+          <span class="modal-title">How to use Fresnel.js</span>
+        </div>
+        <button class="panel-close" id="info-x" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <ol class="steps">
+          <li>
+            <b>Find a look you like.</b> Click any shape, play with the sliders until the glass feels right.
+            <span class="step-aside">Every setting is live — adjust IOR, bevel, tint, shadow, all in real time.</span>
+          </li>
+          <li>
+            <b>Generate the code.</b> Hit <code>&lt;/&gt; Generate code</code> at the bottom of the settings panel. A modal opens with a <code>&lt;Fresnel /&gt;</code> JSX snippet containing your exact values.
+            <span class="step-aside">Click "Copy code" — it's now on your clipboard.</span>
+          </li>
+          <li>
+            <b>Get the component.</b> Grab <code>Fresnel.tsx</code> from the <a href="https://github.com/tapmaurer-repo/fresnel.js/blob/main/Fresnel.tsx" target="_blank" rel="noopener" style="color:var(--accent);">GitHub repo</a> and drop it anywhere in your project.
+            <span class="step-aside">Zero dependencies beyond React. No install step.</span>
+          </li>
+          <li>
+            <b>Import and use.</b> <code>import Fresnel from "./Fresnel"</code>, paste your generated snippet inside a sized container.
+            <span class="step-aside">Component sizes to <code>100%</code> of its parent — give the parent a width and height.</span>
+          </li>
+          <li>
+            <b>Put content behind it.</b> The glass refracts whatever is in the backdrop. Images, gradients, video, other components — anything works. Without a backdrop, the effect is invisible.
+          </li>
+        </ol>
+
+        <div class="warning-callout">
+          <span class="warning-head">⚠ Heads up — ancestor gotchas</span>
+          If the glass looks empty or dead on screen, check the components above it in the tree. Any ancestor with
+          <code>filter</code>, <code>clip-path</code>, <code>opacity&lt;1</code>, <code>mask</code>, or <code>mix-blend-mode</code> creates a
+          <em>backdrop-root</em>, and the glass will refract nothing instead of the real page behind it.
+          <br><br>
+          <b>Safe:</b> <code>transform</code>, <code>overflow</code>, <code>position</code>, <code>z-index</code>. These do not create a backdrop-root.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-close-btn" id="info-close">Got it</button>
+        <a class="copy-btn" href="https://github.com/tapmaurer-repo/fresnel.js" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">Open the docs ↗</a>
       </div>
     </div>
   </div>
@@ -748,34 +886,52 @@ function insideTriangle(px, py, W, H) {
 }
 
 /* ── Displacement map ───────────────────────────────────────────── */
-function buildDisplacementMap(W, H, bezelWidth, precomp, shape, cornerRadius, squircleN, dpr) {
+function buildDisplacementMap(W, H, bezelWidth, precomp, shape, cornerRadius, squircleN, dpr, cornerSoftness = 0) {
   const bW = Math.floor(W * dpr), bH = Math.floor(H * dpr);
   const imageData = new ImageData(bW, bH);
+  // Fill the whole buffer with (128, 128, 0, 255) = zero displacement, opaque.
+  // Every pixel must be opaque: feDisplacementMap reads RGB=(0,0,0) on
+  // transparent pixels and applies a constant negative offset across the
+  // interior — which is what broke the square/circle previously. Bezel
+  // pixels override this below. Outside-shape pixels get clipped by
+  // clip-path/border-radius on the glass element, so they don't contribute
+  // visually.
   new Uint32Array(imageData.data.buffer).fill(0xff008080);
   const bz = bezelWidth * dpr;
   const maxDisp = Math.max(...precomp.map(Math.abs)) || 1;
 
   if (shape === 'triangle') {
+    const [A, B, C] = triVerts(bW, bH);
+    const softRadius = Math.min(bW, bH) * 0.45;
+
     for (let y1 = 0; y1 < bH; y1++) {
       for (let x1 = 0; x1 < bW; x1++) {
         if (!insideTriangle(x1, y1, bW, bH)) continue;
-        const idx = (y1 * bW + x1) * 4;
         const { d, nx, ny } = nearestTriangleEdge(x1, y1, bW, bH);
-        if (d <= bz) {
-          const bi = Math.min(precomp.length - 1, Math.max(0, (d / bz * precomp.length) | 0));
-          const dist = precomp[bi] ?? 0;
-          const dX = -nx * dist / maxDisp;
-          const dY = -ny * dist / maxDisp;
-          imageData.data[idx]     = 128 + dX * 127;
-          imageData.data[idx + 1] = 128 + dY * 127;
-          imageData.data[idx + 2] = 0;
-          imageData.data[idx + 3] = 255;
-        } else {
-          imageData.data[idx]     = 128;
-          imageData.data[idx + 1] = 128;
-          imageData.data[idx + 2] = 0;
-          imageData.data[idx + 3] = 255;
+        if (d > bz) continue; // inside-non-bezel: already (128,128,0,255)
+        const idx = (y1 * bW + x1) * 4;
+        const bi = Math.min(precomp.length - 1, Math.max(0, (d / bz * precomp.length) | 0));
+        const dist = precomp[bi] ?? 0;
+
+        let vertexFactor = 1;
+        if (cornerSoftness > 0) {
+          const dvA = Math.hypot(x1 - A[0], y1 - A[1]);
+          const dvB = Math.hypot(x1 - B[0], y1 - B[1]);
+          const dvC = Math.hypot(x1 - C[0], y1 - C[1]);
+          const dv = Math.min(dvA, dvB, dvC);
+          if (dv < softRadius) {
+            const t = dv / softRadius;
+            const smooth = t * t * (3 - 2 * t);
+            vertexFactor = 1 - cornerSoftness * (1 - smooth);
+          }
         }
+
+        const dX = -nx * dist * vertexFactor / maxDisp;
+        const dY = -ny * dist * vertexFactor / maxDisp;
+        imageData.data[idx]     = 128 + dX * 127;
+        imageData.data[idx + 1] = 128 + dY * 127;
+        imageData.data[idx + 2] = 0;
+        imageData.data[idx + 3] = 255;
       }
     }
     return imageData;
@@ -828,6 +984,7 @@ function buildDisplacementMap(W, H, bezelWidth, precomp, shape, cornerRadius, sq
         imageData.data[idx + 2] = 0;
         imageData.data[idx + 3] = 255;
       }
+      // else: already (128,128,0,255) from the buffer fill
     }
   }
   return imageData;
@@ -841,6 +998,13 @@ function buildSpecularMap(W, H, radius, bezelWidth, shape, dpr, angle = Math.PI 
   const sv = [Math.cos(angle), Math.sin(angle)];
 
   if (shape === 'triangle') {
+    // Triangle specular: falls off toward the interior of the bezel.
+    // Without this, the entire bezel ribbon is lit at roughly the same
+    // intensity, producing ~3x more saturated highlight area than the
+    // rectangle (which only lights its four rounded corner arcs).
+    // With the falloff, the triangle's highlight concentrates at the edge
+    // itself and tapers quickly, making `specularSaturation: N` visually
+    // comparable between shapes.
     for (let y1 = 0; y1 < bH; y1++) {
       for (let x1 = 0; x1 < bW; x1++) {
         if (!insideTriangle(x1, y1, bW, bH)) continue;
@@ -848,7 +1012,12 @@ function buildSpecularMap(W, H, radius, bezelWidth, shape, dpr, angle = Math.PI 
         if (d <= bz && d >= 0) {
           const idx = (y1 * bW + x1) * 4;
           const dot = Math.abs(nx * sv[0] + (-ny) * sv[1]);
-          const coeff = dot * Math.sqrt(1 - (1 - (bz - d) / bz) ** 2);
+          // Falloff: edge-concentrated highlight. At d=0 (right at edge) the
+          // full intensity applies; at d=bz (inner edge of bezel) intensity
+          // is zero. Squared falloff matches the rectangle's corner-arc
+          // geometry more closely perceptually.
+          const edgeFalloff = Math.pow(1 - d / bz, 2);
+          const coeff = dot * Math.sqrt(1 - (1 - (bz - d) / bz) ** 2) * edgeFalloff;
           const color = 255 * coeff;
           imageData.data[idx]     = color;
           imageData.data[idx + 1] = color;
@@ -875,6 +1044,10 @@ function buildSpecularMap(W, H, radius, bezelWidth, shape, dpr, angle = Math.PI 
         const opacity = d2 < r2 ? 1 : 1 - (dfc - Math.sqrt(r2)) / (Math.sqrt(rp2) - Math.sqrt(r2));
         const cos = x / dfc, sin = -y / dfc;
         const dot = Math.abs(cos * sv[0] + sin * sv[1]);
+        // NOTE: the rectangle/circle specular already has an edge-concentrated
+        // falloff baked into the sqrt(1 - (1 - dfs/dpr)^2) term below.
+        // Do NOT add an additional (1 - dfs/bz)^2 multiplier — that breaks
+        // the math and produces corner artifacts.
         const coeff = dot * Math.sqrt(1 - (1 - dfs / dpr) ** 2);
         const color = 255 * coeff;
         imageData.data[idx]     = color;
@@ -935,6 +1108,7 @@ function makeGlass(host, opts = {}) {
     glassThickness: 110,
     refractiveIndex: 1.5,
     scaleRatio: 1,
+    cornerSoftness: 0,
     blur: 0.2,
     specularOpacity: 0.4,
     specularSaturation: 4,
@@ -951,24 +1125,12 @@ function makeGlass(host, opts = {}) {
   const filterId = 'fresnel-' + (++filterCount);
   host.style.position = 'relative';
 
-  // Triangle shadow: render as a blurred, offset SVG polygon whose interior
-  // is then masked out, so the shadow only exists OUTSIDE the triangle
-  // silhouette. The previous approach (black clip-pathed plate underneath the
-  // glass) sat directly behind the glass and darkened anything refracting
-  // through the slightly-translucent tint — visible as a muddy interior face.
-  let shadowEl = null;
-  if (config.shape === 'triangle') {
-    shadowEl = document.createElement('div');
-    shadowEl.setAttribute('aria-hidden', 'true');
-    // Extend bounds so blur has room to spread outward without being clipped.
-    shadowEl.style.cssText = `
-      position: absolute;
-      left: -40px; top: -40px; right: -40px; bottom: -40px;
-      pointer-events: none;
-      overflow: visible;
-    `;
-    host.appendChild(shadowEl);
-  }
+  // Triangle shadow handled via filter: drop-shadow on the glass element
+  // itself. CSS drop-shadow respects clip-path (casts from the clipped
+  // silhouette, not the bounding box), so we get a proper triangle-shaped
+  // shadow. filter on the same element as backdrop-filter does not affect
+  // that element's own backdrop — only descendants'.
+  let shadowEl = null; // kept as null so downstream guards still skip it
 
   // The glass element — all styling lives here directly.
   // No ancestor has filter/clip-path/opacity<1, so backdrop-filter works.
@@ -984,51 +1146,19 @@ function makeGlass(host, opts = {}) {
       glass.style.clipPath = TRI_CLIP;
       glass.style.webkitClipPath = TRI_CLIP;
       glass.style.borderRadius = '0';
-      glass.style.boxShadow = 'none'; // shadow handled by shadowEl
-      if (shadowEl) {
-        // Build a fresh SVG each time so size/offsets track correctly.
-        // The outer polygon is blurred + filled with shadowColor.
-        // The clip-path then removes everything inside the triangle itself,
-        // so only the outer halo (the actual drop shadow) remains.
-        const pad = 40;
-        const svgW = W + pad * 2;
-        const svgH = H + pad * 2;
-        const triPoints = `${pad + W / 2},${pad} ${pad + W},${pad + H} ${pad},${pad + H}`;
-        // Inner triangle coords (in 0–1 space) for the subtractive clip-path
-        // Everything OUTSIDE this polygon is kept; inside is clipped away.
-        // We use evenodd fill-rule: outer rect minus inner triangle = just the halo.
-        const opacity = (config.shadowOpacity / 100).toFixed(3);
-        const blur = Math.max(0.1, config.shadowBlur / 2);
-        shadowEl.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg"
-               width="${svgW}" height="${svgH}"
-               viewBox="0 0 ${svgW} ${svgH}"
-               style="position:absolute; left:0; top:0; overflow:visible;">
-            <defs>
-              <filter id="${filterId}-tshadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="${blur}"/>
-              </filter>
-              <clipPath id="${filterId}-tclip" clipPathUnits="userSpaceOnUse">
-                <path d="M 0 0 H ${svgW} V ${svgH} H 0 Z
-                         M ${triPoints} Z"
-                      fill-rule="evenodd"/>
-              </clipPath>
-            </defs>
-            <g clip-path="url(#${filterId}-tclip)"
-               transform="translate(${config.shadowX}, ${Math.max(2, config.shadowY)})">
-              <polygon points="${triPoints}"
-                       fill="${config.shadowColor}"
-                       opacity="${opacity}"
-                       filter="url(#${filterId}-tshadow)"/>
-            </g>
-          </svg>
-        `;
-      }
+      glass.style.boxShadow = 'none';
+      // CSS filter: drop-shadow respects clip-path and casts from the
+      // clipped silhouette. Stacks alongside the backdrop-filter url(#...).
+      // NOTE: applyCosmetics() below will re-apply this alongside other
+      // filter-chain values — we just leave the shadow on glass.style.filter.
+      const sh = `drop-shadow(${config.shadowX}px ${config.shadowY}px ${config.shadowBlur}px ${hex(config.shadowColor, config.shadowOpacity)})`;
+      glass.style.filter = sh;
     } else {
       glass.style.clipPath = 'none';
       glass.style.webkitClipPath = 'none';
       glass.style.borderRadius = cssRadius(config.shape, W, H, config.cornerRadius);
       glass.style.boxShadow = `${config.shadowX}px ${config.shadowY}px ${config.shadowBlur}px ${hex(config.shadowColor, config.shadowOpacity)}`;
+      glass.style.filter = '';
     }
   }
 
@@ -1051,7 +1181,7 @@ function makeGlass(host, opts = {}) {
                 : config.shape === 'triangle' ? 0
                 : config.cornerRadius * Math.min(W, H) / 2;
 
-    const dispMap = buildDisplacementMap(W, H, config.bezelWidth, precomp, config.shape, config.cornerRadius, config.squircleExponent, quality);
+    const dispMap = buildDisplacementMap(W, H, config.bezelWidth, precomp, config.shape, config.cornerRadius, config.squircleExponent, quality, config.cornerSoftness);
     const specMap = buildSpecularMap(W, H, effRad, config.bezelWidth, config.shape, quality);
     const dispURL = imageDataToDataURL(dispMap);
     const specURL = imageDataToDataURL(specMap);
@@ -1104,7 +1234,8 @@ function makeGlass(host, opts = {}) {
         patch.specularSaturation !== undefined ||
         patch.shape !== undefined ||
         patch.cornerRadius !== undefined ||
-        patch.squircleExponent !== undefined;
+        patch.squircleExponent !== undefined ||
+        patch.cornerSoftness !== undefined;
       Object.assign(config, patch);
       applyShape();
       applyCosmetics();
@@ -1166,13 +1297,13 @@ const DEFAULTS = {
     shape: 'rectangle',
     cornerRadius: 0.08,
     bezelType: 'convex_squircle',
-    bezelWidth: 38,
+    bezelWidth: 12,
     glassThickness: 120,
     refractiveIndex: 1.5,
     scaleRatio: 1.0,
     blur: 0.25,
     specularOpacity: 0.45,
-    specularSaturation: 4,
+    specularSaturation: 2,
     tintColor: '#ffffff',
     tintOpacity: 4,
     borderWidth: 1.5,
@@ -1184,12 +1315,13 @@ const DEFAULTS = {
     shape: 'triangle',
     bezelType: 'lip',
     bezelWidth: 44,
-    glassThickness: 150,
-    refractiveIndex: 1.7,
-    scaleRatio: 1.2,
+    glassThickness: 120,
+    refractiveIndex: 1.5,
+    scaleRatio: 1.0,
+    cornerSoftness: 0.5,
     blur: 0.3,
-    specularOpacity: 0.6,
-    specularSaturation: 7,
+    specularOpacity: 0.05,
+    specularSaturation: 1.5,
     tintColor: '#ffffff',
     tintOpacity: 3,
     borderWidth: 1.5,
@@ -1201,12 +1333,12 @@ const DEFAULTS = {
     shape: 'circle',
     bezelType: 'convex_circle',
     bezelWidth: 40,
-    glassThickness: 180,
-    refractiveIndex: 1.9,
-    scaleRatio: 1.3,
+    glassThickness: 150,
+    refractiveIndex: 1.6,
+    scaleRatio: 1.1,
     blur: 0.2,
-    specularOpacity: 0.5,
-    specularSaturation: 5,
+    specularOpacity: 0.4,
+    specularSaturation: 2,
     tintColor: '#ffffff',
     tintOpacity: 5,
     borderWidth: 1.5,
@@ -1250,6 +1382,14 @@ function controlsFor(shape) {
   ];
   if (shape === 'square') {
     controls.splice(1, 0, { key: 'cornerRadius', type: 'range', label: 'Corner Radius', min: 0, max: 0.5, step: 0.01 });
+  }
+  if (shape === 'triangle') {
+    // Triangle-only: softens refraction near the three vertices, where
+    // adjacent edges' bends stack up into dark focal hotspots.
+    const scaleIdx = controls.findIndex(c => c.key === 'scaleRatio');
+    controls.splice(scaleIdx + 1, 0, {
+      key: 'cornerSoftness', type: 'range', label: 'Vertex Softness', min: 0, max: 1, step: 0.05,
+    });
   }
   return controls;
 }
@@ -1371,7 +1511,7 @@ function renderPanel(shape, glass) {
 // Order we want props to appear in the generated JSX
 const CODE_ORDER = [
   'shape', 'cornerRadius', 'squircleExponent',
-  'bezelType', 'bezelWidth', 'glassThickness', 'refractiveIndex', 'scaleRatio',
+  'bezelType', 'bezelWidth', 'glassThickness', 'refractiveIndex', 'scaleRatio', 'cornerSoftness',
   'blur', 'specularOpacity', 'specularSaturation',
   'tintColor', 'tintOpacity',
   'borderWidth', 'borderColor', 'borderOpacity',
@@ -1389,6 +1529,8 @@ function relevantForShape(key, shape) {
   if (shape === 'rectangle' /* our 'square' slot */) {
     if (key === 'squircleExponent') return false;
   }
+  // cornerSoftness is triangle-specific physics
+  if (key === 'cornerSoftness' && shape !== 'triangle') return false;
   return true;
 }
 
@@ -1588,8 +1730,20 @@ document.getElementById('copy-btn').addEventListener('click', async () => {
   }
 });
 
+// Info modal wiring
+const infoModal = document.getElementById('info-modal');
+function openInfoModal()  { infoModal.classList.add('open'); }
+function closeInfoModal() { infoModal.classList.remove('open'); }
+document.getElementById('info-open').addEventListener('click', openInfoModal);
+document.getElementById('info-x').addEventListener('click', closeInfoModal);
+document.getElementById('info-close').addEventListener('click', closeInfoModal);
+infoModal.addEventListener('click', e => {
+  if (e.target.id === 'info-modal') closeInfoModal();
+});
+
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (infoModal.classList.contains('open')) { closeInfoModal(); return; }
   const modal = document.getElementById('code-modal');
   if (modal.classList.contains('open')) { closeCodeModal(); return; }
   if (activeShape) closePanel();

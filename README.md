@@ -29,6 +29,7 @@ You can't fake that with a blur. It needs a per-pixel displacement field derived
 - **Five shapes** — `rectangle`, `squircle`, `circle`, `pill`, `triangle` (proper SDF, not a clip-path hack)
 - **Real refraction** — Snell's law per-pixel at the bevel, pre-computed into an RGBA displacement map
 - **Specular highlight** — separate overlay computed from bevel normal × light vector
+- **Vertex softening for triangles** — configurable smoothing where edges converge, so pointed shapes don't pool into dark focal hotspots
 - **Draggable** — optional, with pointer capture and click-vs-drag detection
 - **Safari/Firefox fallback** — degrades cleanly to a frosted `backdrop-filter` when the engine can't do SVG filters on backdrops
 - **Zero runtime dependencies** — just React
@@ -48,7 +49,7 @@ What Fresnel adds on top of that foundation:
 
 - **React + TypeScript port.** The upstream ships as a Vue 3 single-file component. Fresnel is a clean standalone React component with full type definitions, exported as a default — drop it into any React codebase from React 18 upward and it works. For the React ecosystem this is the first drop-in option using the kube.io method; previously you had to either rewrite it yourself or reach for WebGL-shader-based alternatives that solve a different problem.
 
-- **Triangle shape with proper SDF refraction.** The upstream supports rectangle, circle, pill, and squircle. Triangles aren't a "change the corner radius" case — there's no corner radius concept, the bevel has to track three edges with outward-pointing normals, and a point-in-triangle test replaces the corner-quadrant logic. That's ~80 lines of genuinely new physics code (`triVerts`, `nearestTriangleEdge`, `insideTriangle`, the centroid-sign trick for outward normals), not a port. If you have a use case for triangular glass — icons with directional emphasis, prism-like flourishes, pointed UI elements — this is the only implementation that does it with real refraction rather than clip-path fakery.
+- **Triangle shape with proper SDF refraction.** The upstream supports rectangle, circle, pill, and squircle. Triangles aren't a "change the corner radius" case — there's no corner radius concept, the bevel has to track three edges with outward-pointing normals, and a point-in-triangle test replaces the corner-quadrant logic. That's ~80 lines of genuinely new physics code (`triVerts`, `nearestTriangleEdge`, `insideTriangle`, the centroid-sign trick for outward normals), not a port. And because three-edge convergence creates dark focal hotspots at the vertices (refraction vectors from adjacent edges stacking), there's a `cornerSoftness` parameter with a smootherstep falloff that attenuates displacement near each vertex — plus a matching squared edge-falloff on the specular map so highlights stay proportional to the rectangle's. If you have a use case for triangular glass — icons with directional emphasis, prism-like flourishes, pointed UI elements — this is the only implementation that does it with real refraction rather than clip-path fakery.
 
 - **Interactive demo playground.** Click any shape in [the live demo](https://fresnel-js.timothymaurer.nl) to open a settings panel with sliders for every parameter, tweak until it looks right, then hit **Generate code** to get a ready-to-paste `<Fresnel />` JSX snippet with your exact values. Shapes are draggable so you can see how the refraction tracks against varied content. Backgrounds cycle across hand-picked photos. The upstream has a basic demo page; this is a full tuning environment and doubles as the integration handoff for anyone using the component.
 
@@ -73,7 +74,7 @@ import Fresnel from "./Fresnel"
     shape="rectangle"
     cornerRadius={0.08}
     bezelType="convex_squircle"
-    bezelWidth={36}
+    bezelWidth={12}
     glassThickness={120}
     refractiveIndex={1.5}
   />
@@ -100,13 +101,14 @@ The component sizes to `100% / 100%` of its parent — always wrap it in a sized
 
 ### Bevel (the glass itself)
 
-| Prop                | Type                                                          | Default             | Notes                                          |
-| ------------------- | ------------------------------------------------------------- | ------------------- | ---------------------------------------------- |
-| `bezelType`         | `"convex_squircle" \| "convex_circle" \| "concave" \| "lip"`  | `"convex_squircle"` | Surface profile of the bevel                   |
-| `bezelWidth`        | `number`                                                      | `36`                | Bezel width in px, measured inward             |
-| `glassThickness`    | `number`                                                      | `120`               | Virtual thickness — higher = more bending      |
-| `refractiveIndex`   | `number`                                                      | `1.5`               | 1.5 = real glass, 1.9+ = exaggerated diamond   |
-| `scaleRatio`        | `number`                                                      | `1`                 | Overall displacement multiplier                 |
+| Prop                | Type                                                          | Default             | Notes                                                                 |
+| ------------------- | ------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------- |
+| `bezelType`         | `"convex_squircle" \| "convex_circle" \| "concave" \| "lip"`  | `"convex_squircle"` | Surface profile of the bevel                                          |
+| `bezelWidth`        | `number`                                                      | `12`                | Bezel width in px, measured inward                                    |
+| `glassThickness`    | `number`                                                      | `120`               | Virtual thickness — higher = more bending                             |
+| `refractiveIndex`   | `number`                                                      | `1.5`               | 1.5 = real glass, 1.9+ = exaggerated diamond                          |
+| `scaleRatio`        | `number`                                                      | `1`                 | Overall displacement multiplier                                       |
+| `cornerSoftness`    | `number`                                                      | `0.5`               | Attenuates refraction near triangle vertices. Triangle-only; 0–1      |
 
 ### Surface
 
@@ -158,7 +160,7 @@ Three things combine to produce the effect:
 
 **2. Snell's law, pre-computed.** For 128 sampled positions across the bevel, we calculate the surface normal, refract a vertical ray at `1/IOR`, and record how far it ends up laterally after traveling through `bezelWidth × f(x) + glassThickness` of glass. This gives a 1D lookup table of pixel displacements.
 
-**3. A displacement map.** For each pixel inside the shape, we find its distance to the nearest edge, look up the corresponding displacement from step 2, encode the X/Y offsets as RGB (with `128` as zero), and bake it into a PNG. For rounded shapes this uses the classic rect-with-rounded-corners logic. For triangles it uses a proper SDF with three edge distances and outward-pointing normals. An SVG `<feDisplacementMap>` reads the map and bends the backdrop accordingly, and a separate specular overlay (computed from `dot(bevelNormal, lightVector)`) adds the highlight.
+**3. A displacement map.** For each pixel inside the shape, we find its distance to the nearest edge, look up the corresponding displacement from step 2, encode the X/Y offsets as RGB (with `128` as zero), and bake it into a PNG. For rounded shapes this uses the classic rect-with-rounded-corners logic. For triangles it uses a proper SDF with three edge distances and outward-pointing normals, plus a smootherstep `cornerSoftness` falloff near each vertex to prevent the dark focal hotspots that appear where adjacent edges' refraction vectors stack. An SVG `<feDisplacementMap>` reads the map and bends the backdrop accordingly, and a separate specular overlay (computed from `dot(bevelNormal, lightVector)`) adds the highlight.
 
 ---
 

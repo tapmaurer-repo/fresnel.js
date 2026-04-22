@@ -137,7 +137,8 @@ type Shape = "rectangle" | "squircle" | "circle" | "pill" | "triangle"
 function buildDisplacementMap(
     W: number, H: number, bezelWidth: number,
     precomp: number[], shape: Shape,
-    cornerRadius: number, squircleN: number, dpr: number
+    cornerRadius: number, squircleN: number, dpr: number,
+    cornerSoftness: number = 0,
 ): ImageData {
     const bW = Math.floor(W * dpr), bH = Math.floor(H * dpr)
     const imageData = new ImageData(bW, bH)
@@ -146,26 +147,39 @@ function buildDisplacementMap(
     const maxDisp = Math.max(...precomp.map(Math.abs)) || 1
 
     if (shape === "triangle") {
+        const [A, B, C] = triVerts(bW, bH)
+        const softRadius = Math.min(bW, bH) * 0.45
         for (let y1 = 0; y1 < bH; y1++) {
             for (let x1 = 0; x1 < bW; x1++) {
                 if (!insideTriangle(x1, y1, bW, bH)) continue
-                const idx = (y1 * bW + x1) * 4
                 const { d, nx, ny } = nearestTriEdge(x1, y1, bW, bH)
-                if (d <= bz) {
-                    const bi = Math.min(precomp.length - 1, Math.max(0, ((d / bz) * precomp.length) | 0))
-                    const dist = precomp[bi] ?? 0
-                    const dX = (-nx * dist) / maxDisp
-                    const dY = (-ny * dist) / maxDisp
-                    imageData.data[idx]     = 128 + dX * 127
-                    imageData.data[idx + 1] = 128 + dY * 127
-                    imageData.data[idx + 2] = 0
-                    imageData.data[idx + 3] = 255
-                } else {
-                    imageData.data[idx]     = 128
-                    imageData.data[idx + 1] = 128
-                    imageData.data[idx + 2] = 0
-                    imageData.data[idx + 3] = 255
+                if (d > bz) continue // inside-non-bezel: already (128,128,0,255) from fill
+                const idx = (y1 * bW + x1) * 4
+                const bi = Math.min(precomp.length - 1, Math.max(0, ((d / bz) * precomp.length) | 0))
+                const dist = precomp[bi] ?? 0
+
+                // Vertex softening: adjacent edges' refraction stacks up near
+                // vertices, producing dark focal hotspots. Smoothly attenuate
+                // the displacement within softRadius of any vertex.
+                let vertexFactor = 1
+                if (cornerSoftness > 0) {
+                    const dvA = Math.hypot(x1 - A[0], y1 - A[1])
+                    const dvB = Math.hypot(x1 - B[0], y1 - B[1])
+                    const dvC = Math.hypot(x1 - C[0], y1 - C[1])
+                    const dv = Math.min(dvA, dvB, dvC)
+                    if (dv < softRadius) {
+                        const t = dv / softRadius
+                        const smooth = t * t * (3 - 2 * t)
+                        vertexFactor = 1 - cornerSoftness * (1 - smooth)
+                    }
                 }
+
+                const dX = (-nx * dist * vertexFactor) / maxDisp
+                const dY = (-ny * dist * vertexFactor) / maxDisp
+                imageData.data[idx]     = 128 + dX * 127
+                imageData.data[idx + 1] = 128 + dY * 127
+                imageData.data[idx + 2] = 0
+                imageData.data[idx + 3] = 255
             }
         }
         return imageData
@@ -244,7 +258,12 @@ function buildSpecularMap(
                 if (d <= bz && d >= 0) {
                     const idx = (y1 * bW + x1) * 4
                     const dot = Math.abs(nx * sv[0] + (-ny) * sv[1])
-                    const coeff = dot * Math.sqrt(1 - (1 - (bz - d) / bz) ** 2)
+                    // Edge-concentrated falloff: without this, the triangle's
+                    // full bezel ribbon lights uniformly at ~3x the effective
+                    // area of the rectangle's corner arcs, making
+                    // specularSaturation look wildly different per shape.
+                    const edgeFalloff = Math.pow(1 - d / bz, 2)
+                    const coeff = dot * Math.sqrt(1 - (1 - (bz - d) / bz) ** 2) * edgeFalloff
                     const color = 255 * coeff
                     imageData.data[idx]     = color
                     imageData.data[idx + 1] = color
@@ -313,6 +332,8 @@ export interface FresnelProps {
     refractiveIndex?: number
     /** Overall displacement multiplier. */
     scaleRatio?: number
+    /** Attenuates refraction near triangle vertices, where adjacent edges' bends stack into dark focal hotspots. 0 = off, 1 = full softening. Triangle-only; ignored on other shapes. */
+    cornerSoftness?: number
 
     /** Pre-displacement Gaussian blur. */
     blur?: number
@@ -365,10 +386,11 @@ export default function Fresnel(props: FresnelProps) {
         cornerRadius = 0.15,
         squircleExponent = 4,
         bezelType = "convex_squircle",
-        bezelWidth = 36,
+        bezelWidth = 12,
         glassThickness = 120,
         refractiveIndex = 1.5,
         scaleRatio = 1,
+        cornerSoftness = 0.5,
         blur = 0.25,
         frost = 0,
         specularOpacity = 0.45,
@@ -464,7 +486,7 @@ export default function Fresnel(props: FresnelProps) {
                 : shape === "pill" ? Math.min(W, H) / 2
                 : shape === "triangle" ? 0
                 : cornerRadius * Math.min(W, H) / 2
-            const dispMap = buildDisplacementMap(W, H, bezelWidth, precomp, shape, cornerRadius, squircleExponent, quality)
+            const dispMap = buildDisplacementMap(W, H, bezelWidth, precomp, shape, cornerRadius, squircleExponent, quality, cornerSoftness)
             const specMap = buildSpecularMap(W, H, effRad, bezelWidth, shape, quality)
             setMaps({
                 dispUrl: imageDataToDataURL(dispMap),
@@ -474,7 +496,7 @@ export default function Fresnel(props: FresnelProps) {
         } catch (e) {
             console.warn("[Fresnel] Map generation failed:", e)
         }
-    }, [bezelType, bezelWidth, glassThickness, refractiveIndex, W, H, shape, cornerRadius, squircleExponent, ready, useFallback])
+    }, [bezelType, bezelWidth, glassThickness, refractiveIndex, W, H, shape, cornerRadius, squircleExponent, cornerSoftness, ready, useFallback])
 
     const scale = maps ? maps.maxDisp * scaleRatio : 0
 
