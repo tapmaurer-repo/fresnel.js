@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fresnel — Refractive Glass Component</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --accent:  #DE4F22;
+    --ink:     #0a0a0a;
+    --paper:   #fafafa;
+    --panel:   rgba(10, 10, 10, 0.78);
+    --stroke:  rgba(255, 255, 255, 0.10);
+    --stroke-strong: rgba(255, 255, 255, 0.22);
+    --dim:     rgba(250, 250, 250, 0.58);
+    --dimmer:  rgba(250, 250, 250, 0.35);
+    --sans:   'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono:   'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+    --pixel:  'Silkscreen', ui-monospace, monospace;
+    /* Chip-style dark background for text that would otherwise sit on the bright image */
+    --chip-bg: rgba(10, 10, 10, 0.55);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    color: var(--paper);
+    background: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─────────── BACKGROUND ─────────── */
+  /* Two stacked layers so we can crossfade between images */
+  .bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    will-change: opacity;
+  }
+  .bg-layer.active { opacity: 1; }
+
+  /* Vignette rides on top of both layers so it stays visually constant during the swap */
+  .bg-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 90% 70% at center, transparent 0%, rgba(0,0,0,0.30) 100%),
+      linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 20%, transparent 70%, rgba(0,0,0,0.45) 100%);
+  }
+
+  /* ─────────── HEADER ─────────── */
+  .header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    padding: 28px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .header > * { pointer-events: auto; }
+
+  .brand {
+    font-family: var(--pixel);
+    font-weight: 400;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--paper);
+    padding: 8px 14px 7px;
+    background: var(--chip-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 4px;
+    border: 1px solid var(--stroke);
+  }
+
+  .header-right {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    padding: 6px 12px;
+    background: var(--chip-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 4px;
+    border: 1px solid var(--stroke);
+    color: var(--dim);
+  }
+  .header-right a {
+    color: var(--paper);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--dimmer);
+  }
+  .header-right a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+
+  .header-right-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .refresh-btn, .github-btn {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--chip-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--stroke);
+    border-radius: 4px;
+    color: var(--paper);
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .refresh-btn:hover, .github-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .refresh-btn svg, .github-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .refresh-btn svg {
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0, 1);
+  }
+
+  /* ─────────── STAGE ─────────── */
+  .stage {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8vw;
+    padding: 0 48px;
+    pointer-events: none;
+  }
+  .stage > * { pointer-events: auto; }
+
+  .shape-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+  .shape-slot.active .shape-tag {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .shape-tag {
+    font-family: var(--pixel);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--paper);
+    text-transform: uppercase;
+    padding: 5px 11px;
+    border: 1px solid var(--stroke-strong);
+    border-radius: 2px;
+    background: var(--chip-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: all 0.2s;
+    user-select: none;
+    cursor: pointer;
+  }
+  .shape-tag .num {
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .shape-tag:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .glass-host {
+    position: relative;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  .glass-host.dragging { cursor: grabbing; }
+
+  /* 1.5x bigger defaults */
+  .g-square   { width: 300px; height: 300px; }
+  .g-triangle { width: 360px; height: 315px; }
+  .g-circle   { width: 300px; height: 300px; }
+
+  /* ─────────── FOOTER ─────────── */
+  .footer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 50;
+    padding: 22px 36px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+  }
+  .footer > span {
+    padding: 6px 12px;
+    background: var(--chip-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 4px;
+    border: 1px solid var(--stroke);
+    color: var(--dim);
+    pointer-events: auto;
+  }
+  .footer a {
+    color: var(--paper);
+    text-decoration: none;
+    pointer-events: auto;
+    border-bottom: 1px dotted var(--dimmer);
+  }
+  .footer a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .footer .hint {
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    border-color: rgba(222, 79, 34, 0.5);
+  }
+
+  /* ─────────── PANEL ─────────── */
+  .panel {
+    position: fixed;
+    top: 0; right: 0;
+    width: 360px;
+    height: 100vh;
+    z-index: 100;
+    background: var(--panel);
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    border-left: 1px solid var(--stroke);
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.2, 0, 0, 1);
+    display: flex;
+    flex-direction: column;
+    font-family: var(--sans);
+  }
+  .panel.open { transform: translateX(0); }
+
+  .panel-header {
+    padding: 28px 28px 20px;
+    border-bottom: 1px solid var(--stroke);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .panel-kicker {
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+  }
+  .panel-title {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    color: var(--paper);
+    margin-top: 6px;
+  }
+  .panel-close {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--stroke-strong);
+    color: var(--paper);
+    width: 32px; height: 32px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .panel-close:hover { border-color: var(--accent); color: var(--accent); }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px 28px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--stroke-strong) transparent;
+  }
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--stroke-strong); border-radius: 2px; }
+
+  .section-label {
+    font-family: var(--pixel);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin: 20px 0 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--stroke);
+  }
+  .section-label:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+
+  .control { margin-bottom: 14px; }
+  .control-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .control-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--paper);
+  }
+  .control-value {
+    font-family: var(--pixel);
+    font-size: 10px;
+    color: var(--accent);
+    padding: 2px 6px;
+    border: 1px solid rgba(222, 79, 34, 0.3);
+    border-radius: 2px;
+    background: rgba(222, 79, 34, 0.06);
+    min-width: 48px;
+    text-align: center;
+  }
+
+  input[type="range"] {
+    appearance: none; -webkit-appearance: none;
+    width: 100%; height: 24px; background: transparent; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: var(--stroke-strong); border-radius: 1px; }
+  input[type="range"]::-moz-range-track            { width: 100%; height: 2px; background: var(--stroke-strong); border-radius: 1px; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; background: var(--accent);
+    border-radius: 2px; margin-top: -6px; cursor: pointer;
+    transition: transform 0.12s;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; background: var(--accent); border: none;
+    border-radius: 2px; cursor: pointer;
+  }
+  input[type="range"]:hover::-webkit-slider-thumb  { transform: scale(1.2); }
+  input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.3); }
+
+  select {
+    appearance: none; -webkit-appearance: none;
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--stroke-strong);
+    color: var(--paper);
+    padding: 10px 30px 10px 12px;
+    border-radius: 4px;
+    font-family: var(--mono); font-size: 11px;
+    cursor: pointer;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="white" stroke-width="1.2" fill="none"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.15s;
+  }
+  select:hover, select:focus { border-color: var(--accent); outline: none; }
+  select option { background: var(--ink); color: var(--paper); }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 11px 16px;
+    background: transparent;
+    border: 1px solid var(--stroke-strong);
+    color: var(--paper);
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .btn + .btn { margin-top: 10px; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(222, 79, 34, 0.05); }
+  .btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(222, 79, 34, 0.10);
+  }
+  .btn-primary:hover { background: rgba(222, 79, 34, 0.18); }
+  .btn-group { margin-top: 22px; }
+
+  .panel-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: transparent;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .panel-scrim.open { pointer-events: auto; opacity: 1; }
+
+  /* ─────────── CODE MODAL ─────────── */
+  .modal-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .modal-scrim.open { opacity: 1; pointer-events: auto; }
+  .modal-card {
+    width: min(640px, 92vw);
+    max-height: 82vh;
+    background: #0a0a0a;
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.96);
+    transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .modal-scrim.open .modal-card { transform: scale(1); }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--stroke);
+  }
+  .modal-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .modal-kicker {
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+  }
+  .modal-title {
+    font-family: var(--sans);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--paper);
+  }
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--stroke-strong) transparent;
+  }
+  .code-block {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--paper);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--stroke);
+    border-radius: 6px;
+    padding: 18px 20px;
+    white-space: pre;
+    overflow-x: auto;
+    tab-size: 2;
+  }
+  .code-block .tk-tag    { color: #c792ea; }
+  .code-block .tk-attr   { color: #82aaff; }
+  .code-block .tk-string { color: #c3e88d; }
+  .code-block .tk-num    { color: #f78c6c; }
+  .code-block .tk-brace  { color: var(--dim); }
+  .code-block .tk-comment { color: var(--dimmer); font-style: italic; }
+
+  .modal-footer {
+    display: flex;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--stroke);
+  }
+  .copy-btn, .modal-close-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid var(--stroke-strong);
+    color: var(--paper);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .copy-btn {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(222, 79, 34, 0.08);
+  }
+  .copy-btn:hover { background: rgba(222, 79, 34, 0.18); }
+  .copy-btn.copied { border-color: #4ade80; color: #4ade80; background: rgba(74, 222, 128, 0.08); }
+  .modal-close-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .browser-notice {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 200;
+    padding: 32px 36px;
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    text-align: center;
+    display: none;
+    max-width: 420px;
+  }
+  .browser-notice h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 20px;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+  .browser-notice p {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--dim);
+  }
+  .browser-notice.show { display: block; }
+
+  @media (max-width: 1000px) {
+    .stage { gap: 4vw; flex-wrap: wrap; padding: 80px 20px; }
+    .g-square, .g-triangle, .g-circle { transform: scale(0.7); }
+    .panel { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="bg-layer" id="bg-a"></div>
+  <div class="bg-layer" id="bg-b"></div>
+  <div class="bg-vignette"></div>
+
+  <header class="header">
+    <span class="brand">FRESNEL</span>
+    <div class="header-right-group">
+      <span class="header-right">Photo <a id="photo-credit-link" href="#" target="_blank" rel="noopener"></a> / Unsplash</span>
+      <button class="refresh-btn" id="refresh-bg" type="button" title="Switch background" aria-label="Switch background">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"/>
+          <path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+          <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+        </svg>
+      </button>
+      <a class="github-btn" href="https://github.com/tapmaurer-repo/fresnel.js" target="_blank" rel="noopener" title="Source on GitHub" aria-label="GitHub repository">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="shape-slot" data-shape="square">
+      <span class="shape-tag"><span class="num">01</span>Square</span>
+      <div class="glass-host g-square" id="host-square" data-shape="square"></div>
+    </div>
+
+    <div class="shape-slot" data-shape="triangle">
+      <span class="shape-tag"><span class="num">02</span>Triangle</span>
+      <div class="glass-host g-triangle" id="host-triangle" data-shape="triangle"></div>
+    </div>
+
+    <div class="shape-slot" data-shape="circle">
+      <span class="shape-tag"><span class="num">03</span>Circle</span>
+      <div class="glass-host g-circle" id="host-circle" data-shape="circle"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <span>Made by <a href="https://timothymaurer.nl" target="_blank" rel="noopener">Tim Maurer</a></span>
+    <span class="hint">Drag shapes · Click to tweak</span>
+    <span>Chromium only · <a href="https://github.com/tapmaurer-repo/fresnel.js" target="_blank" rel="noopener">GitHub</a></span>
+  </footer>
+
+  <div class="panel-scrim" id="scrim"></div>
+  <aside class="panel" id="panel" aria-hidden="true">
+    <div class="panel-header">
+      <div>
+        <div class="panel-kicker" id="panel-kicker">// shape 01</div>
+        <h2 class="panel-title" id="panel-title">Square</h2>
+      </div>
+      <button class="panel-close" id="panel-close" aria-label="Close">✕</button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+  </aside>
+
+  <div class="modal-scrim" id="code-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-kicker">// copy &amp; paste</span>
+          <span class="modal-title">React component usage</span>
+        </div>
+        <button class="panel-close" id="modal-x" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre class="code-block"><code id="code-output"></code></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-close-btn" id="modal-close">Close</button>
+        <button class="copy-btn" id="copy-btn">Copy code</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="browser-notice" id="browserNotice">
+    <h3>Open this in Chrome</h3>
+    <p>Fresnel uses SVG <code>backdrop-filter</code>, a Chromium-only feature (Chrome, Edge, Brave, Arc, Opera). The component has a frosted-blur fallback for other engines; this demo does not.</p>
+  </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   FRESNEL — PHYSICS PIPELINE
+   Surface equations → Snell's law lookup → RGBA displacement map →
+   specular map → SVG filter chain applied as backdrop-filter.
+   Ported from the kube.io / vue-web-liquid-glass method.
+   Extended with triangle SDF support.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const CONVEX_SQUIRCLE = x => Math.pow(1 - Math.pow(1 - x, 4), 1 / 4);
+const CONVEX_CIRCLE   = x => Math.sqrt(1 - Math.pow(1 - x, 2));
+const CONCAVE_FN      = x => 1 - CONVEX_CIRCLE(x);
+const LIP_FN = x => {
+  const convex = CONVEX_SQUIRCLE(x * 2);
+  const concave = CONCAVE_FN(x) + 0.1;
+  const s = 6 * x ** 5 - 15 * x ** 4 + 10 * x ** 3;
+  return convex * (1 - s) + concave * s;
+};
+const SURFACE_FNS = {
+  convex_squircle: CONVEX_SQUIRCLE,
+  convex_circle:   CONVEX_CIRCLE,
+  concave:         CONCAVE_FN,
+  lip:             LIP_FN,
+};
+
+function precomputeDisplacement(glassThickness, bezelWidth, fn, ior, samples = 128) {
+  const eta = 1 / ior;
+  function refract(nX, nY) {
+    const dot = nY;
+    const k = 1 - eta * eta * (1 - dot * dot);
+    if (k < 0) return null;
+    const ks = Math.sqrt(k);
+    return [-(eta * dot + ks) * nX, eta - (eta * dot + ks) * nY];
+  }
+  return Array.from({ length: samples }, (_, i) => {
+    const x = i / samples;
+    const y = fn(x);
+    const dx = x < 1 ? 0.0001 : -0.0001;
+    const slope = (fn(x + dx) - y) / dx;
+    const mag = Math.sqrt(slope * slope + 1);
+    const n = [-slope / mag, -1 / mag];
+    const r = refract(n[0], n[1]);
+    if (!r) return 0;
+    const remaining = y * bezelWidth + glassThickness;
+    return r[0] * (remaining / r[1]);
+  });
+}
+
+/* ── Triangle SDF helpers ───────────────────────────────────────── */
+function triVerts(W, H)   { return [[W / 2, 0], [W, H], [0, H]]; }
+function triCentroid(W, H) { return [W / 2, (2 * H) / 3]; }
+
+function distToSegWithOutward(p, a, b, centroid) {
+  const sx = b[0] - a[0], sy = b[1] - a[1];
+  const px = p[0] - a[0], py = p[1] - a[1];
+  const len2 = sx * sx + sy * sy || 1;
+  const t = Math.max(0, Math.min(1, (px * sx + py * sy) / len2));
+  const cx = a[0] + t * sx, cy = a[1] + t * sy;
+  const dx = p[0] - cx,     dy = p[1] - cy;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  const p1 = [-sy, sx], p2 = [sy, -sx];
+  const toC = [centroid[0] - cx, centroid[1] - cy];
+  const dot1 = p1[0] * toC[0] + p1[1] * toC[1];
+  const out = dot1 < 0 ? p1 : p2;
+  const omag = Math.sqrt(out[0] * out[0] + out[1] * out[1]) || 1;
+  return { d, nx: out[0] / omag, ny: out[1] / omag };
+}
+
+function nearestTriangleEdge(px, py, W, H) {
+  const [A, B, C] = triVerts(W, H);
+  const cen = triCentroid(W, H);
+  const e1 = distToSegWithOutward([px, py], A, B, cen);
+  const e2 = distToSegWithOutward([px, py], B, C, cen);
+  const e3 = distToSegWithOutward([px, py], C, A, cen);
+  if (e1.d <= e2.d && e1.d <= e3.d) return e1;
+  if (e2.d <= e3.d) return e2;
+  return e3;
+}
+
+function insideTriangle(px, py, W, H) {
+  const [A, B, C] = triVerts(W, H);
+  const sign = (p1, p2, p3) => (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1]);
+  const p = [px, py];
+  const d1 = sign(p, A, B), d2 = sign(p, B, C), d3 = sign(p, C, A);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+}
+
+/* ── Displacement map ───────────────────────────────────────────── */
+function buildDisplacementMap(W, H, bezelWidth, precomp, shape, cornerRadius, squircleN, dpr) {
+  const bW = Math.floor(W * dpr), bH = Math.floor(H * dpr);
+  const imageData = new ImageData(bW, bH);
+  new Uint32Array(imageData.data.buffer).fill(0xff008080);
+  const bz = bezelWidth * dpr;
+  const maxDisp = Math.max(...precomp.map(Math.abs)) || 1;
+
+  if (shape === 'triangle') {
+    for (let y1 = 0; y1 < bH; y1++) {
+      for (let x1 = 0; x1 < bW; x1++) {
+        if (!insideTriangle(x1, y1, bW, bH)) continue;
+        const idx = (y1 * bW + x1) * 4;
+        const { d, nx, ny } = nearestTriangleEdge(x1, y1, bW, bH);
+        if (d <= bz) {
+          const bi = Math.min(precomp.length - 1, Math.max(0, (d / bz * precomp.length) | 0));
+          const dist = precomp[bi] ?? 0;
+          const dX = -nx * dist / maxDisp;
+          const dY = -ny * dist / maxDisp;
+          imageData.data[idx]     = 128 + dX * 127;
+          imageData.data[idx + 1] = 128 + dY * 127;
+          imageData.data[idx + 2] = 0;
+          imageData.data[idx + 3] = 255;
+        } else {
+          imageData.data[idx]     = 128;
+          imageData.data[idx + 1] = 128;
+          imageData.data[idx + 2] = 0;
+          imageData.data[idx + 3] = 255;
+        }
+      }
+    }
+    return imageData;
+  }
+
+  const maxCR = Math.min(bW, bH) / 2;
+  let r;
+  switch (shape) {
+    case 'circle': r = maxCR; break;
+    case 'pill':   r = Math.min(bW, bH) / 2; break;
+    default:       r = cornerRadius * maxCR; break;
+  }
+  const squircleDist = (x, y, rad, n) => {
+    if (rad === 0) return Math.hypot(x, y);
+    const aX = Math.abs(x) / rad, aY = Math.abs(y) / rad;
+    return Math.pow(Math.pow(aX, n) + Math.pow(aY, n), 1 / n) * rad;
+  };
+  for (let y1 = 0; y1 < bH; y1++) {
+    for (let x1 = 0; x1 < bW; x1++) {
+      const idx = (y1 * bW + x1) * 4;
+      const isL = x1 < r, isR = x1 >= bW - r;
+      const isT = y1 < r, isB = y1 >= bH - r;
+      let distToEdge = 0, nX = 0, nY = 0, inBezel = false;
+      if ((isL || isR) && (isT || isB)) {
+        const x = isL ? x1 - r : x1 - (bW - r);
+        const y = isT ? y1 - r : y1 - (bH - r);
+        const d = (shape === 'squircle' && cornerRadius > 0)
+          ? squircleDist(x, y, r, squircleN)
+          : Math.hypot(x, y);
+        distToEdge = r - d;
+        if (distToEdge >= -1 && distToEdge <= bz) {
+          inBezel = true;
+          const m = Math.hypot(x, y) || 1;
+          nX = x / m; nY = y / m;
+        }
+      } else if (isL || isR) {
+        distToEdge = isL ? x1 : bW - 1 - x1;
+        if (distToEdge <= bz) { inBezel = true; nX = isL ? -1 : 1; nY = 0; }
+      } else if (isT || isB) {
+        distToEdge = isT ? y1 : bH - 1 - y1;
+        if (distToEdge <= bz) { inBezel = true; nX = 0; nY = isT ? -1 : 1; }
+      }
+      if (inBezel && distToEdge >= 0) {
+        const bi = Math.min(precomp.length - 1, Math.max(0, (distToEdge / bz * precomp.length) | 0));
+        const dist = precomp[bi] ?? 0;
+        const dX = -nX * dist / maxDisp;
+        const dY = -nY * dist / maxDisp;
+        imageData.data[idx]     = 128 + dX * 127;
+        imageData.data[idx + 1] = 128 + dY * 127;
+        imageData.data[idx + 2] = 0;
+        imageData.data[idx + 3] = 255;
+      }
+    }
+  }
+  return imageData;
+}
+
+/* ── Specular map ───────────────────────────────────────────────── */
+function buildSpecularMap(W, H, radius, bezelWidth, shape, dpr, angle = Math.PI / 3) {
+  const bW = Math.floor(W * dpr), bH = Math.floor(H * dpr);
+  const imageData = new ImageData(bW, bH);
+  const bz = bezelWidth * dpr;
+  const sv = [Math.cos(angle), Math.sin(angle)];
+
+  if (shape === 'triangle') {
+    for (let y1 = 0; y1 < bH; y1++) {
+      for (let x1 = 0; x1 < bW; x1++) {
+        if (!insideTriangle(x1, y1, bW, bH)) continue;
+        const { d, nx, ny } = nearestTriangleEdge(x1, y1, bW, bH);
+        if (d <= bz && d >= 0) {
+          const idx = (y1 * bW + x1) * 4;
+          const dot = Math.abs(nx * sv[0] + (-ny) * sv[1]);
+          const coeff = dot * Math.sqrt(1 - (1 - (bz - d) / bz) ** 2);
+          const color = 255 * coeff;
+          imageData.data[idx]     = color;
+          imageData.data[idx + 1] = color;
+          imageData.data[idx + 2] = color;
+          imageData.data[idx + 3] = color * coeff;
+        }
+      }
+    }
+    return imageData;
+  }
+
+  const r = radius * dpr;
+  const r2 = r ** 2, rp2 = (r + dpr) ** 2, rmb2 = (r - bz) ** 2;
+  const wBR = bW - r * 2, hBR = bH - r * 2;
+  for (let y1 = 0; y1 < bH; y1++) {
+    for (let x1 = 0; x1 < bW; x1++) {
+      const idx = (y1 * bW + x1) * 4;
+      const isL = x1 < r, isR = x1 >= bW - r, isT = y1 < r, isB = y1 >= bH - r;
+      const x = isL ? x1 - r : isR ? x1 - r - wBR : 0;
+      const y = isT ? y1 - r : isB ? y1 - r - hBR : 0;
+      const d2 = x * x + y * y;
+      if (d2 <= rp2 && d2 >= rmb2) {
+        const dfc = Math.sqrt(d2), dfs = r - dfc;
+        const opacity = d2 < r2 ? 1 : 1 - (dfc - Math.sqrt(r2)) / (Math.sqrt(rp2) - Math.sqrt(r2));
+        const cos = x / dfc, sin = -y / dfc;
+        const dot = Math.abs(cos * sv[0] + sin * sv[1]);
+        const coeff = dot * Math.sqrt(1 - (1 - dfs / dpr) ** 2);
+        const color = 255 * coeff;
+        imageData.data[idx]     = color;
+        imageData.data[idx + 1] = color;
+        imageData.data[idx + 2] = color;
+        imageData.data[idx + 3] = color * coeff * opacity;
+      }
+    }
+  }
+  return imageData;
+}
+
+function imageDataToDataURL(imageData) {
+  const c = document.createElement('canvas');
+  c.width = imageData.width;
+  c.height = imageData.height;
+  c.getContext('2d').putImageData(imageData, 0, 0);
+  return c.toDataURL('image/png');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GLASS FACTORY — draggable, no backdrop-root-breaking ancestors
+   ═══════════════════════════════════════════════════════════════════ */
+
+let filterCount = 0;
+const SVG_DEFS = (() => {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  el.setAttribute('style', 'position:absolute;width:0;height:0;overflow:hidden;');
+  el.setAttribute('color-interpolation-filters', 'sRGB');
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  el.appendChild(defs);
+  document.body.appendChild(el);
+  return defs;
+})();
+
+const TRI_CLIP = 'polygon(50% 0%, 100% 100%, 0% 100%)';
+
+function hex(color, opacity100) {
+  const o = Math.round((opacity100 / 100) * 255).toString(16).padStart(2, '0');
+  return color + o;
+}
+
+function cssRadius(shape, w, h, cr) {
+  switch (shape) {
+    case 'circle': return '50%';
+    case 'pill':   return `${Math.min(w, h) / 2}px`;
+    default:       return `${cr * Math.min(w, h) / 2}px`;
+  }
+}
+
+function makeGlass(host, opts = {}) {
+  const config = {
+    shape: 'rectangle',
+    cornerRadius: 0.08,
+    squircleExponent: 4,
+    bezelType: 'convex_squircle',
+    bezelWidth: 32,
+    glassThickness: 110,
+    refractiveIndex: 1.5,
+    scaleRatio: 1,
+    blur: 0.2,
+    specularOpacity: 0.4,
+    specularSaturation: 4,
+    tintColor: '#ffffff',
+    tintOpacity: 4,
+    borderWidth: 1.5,
+    borderColor: '#cccccc',
+    borderOpacity: 35,
+    shadowX: 0, shadowY: 8, shadowBlur: 32, shadowOpacity: 30,
+    shadowColor: '#000000',
+    ...opts,
+  };
+
+  const filterId = 'fresnel-' + (++filterCount);
+  host.style.position = 'relative';
+
+  // Triangle: use a sibling shadow plate (since box-shadow gets clipped by clip-path)
+  let shadowPlate = null;
+  if (config.shape === 'triangle') {
+    shadowPlate = document.createElement('div');
+    shadowPlate.style.cssText = `
+      position: absolute; inset: 0;
+      background: #000;
+      opacity: 0.3;
+      filter: blur(12px);
+      transform: translate(0, 10px);
+      pointer-events: none;
+      clip-path: ${TRI_CLIP};
+      -webkit-clip-path: ${TRI_CLIP};
+    `;
+    host.appendChild(shadowPlate);
+  }
+
+  // The glass element — all styling lives here directly.
+  // No ancestor has filter/clip-path/opacity<1, so backdrop-filter works.
+  const glass = document.createElement('div');
+  glass.style.cssText = 'position:absolute; inset:0;';
+  host.appendChild(glass);
+
+  let filterEl = null;
+
+  function applyShape() {
+    const W = host.offsetWidth, H = host.offsetHeight;
+    if (config.shape === 'triangle') {
+      glass.style.clipPath = TRI_CLIP;
+      glass.style.webkitClipPath = TRI_CLIP;
+      glass.style.borderRadius = '0';
+      glass.style.boxShadow = 'none'; // shadow handled by sibling plate
+      if (shadowPlate) {
+        shadowPlate.style.filter = `blur(${Math.max(6, config.shadowBlur / 2)}px)`;
+        shadowPlate.style.transform = `translate(${config.shadowX}px, ${Math.max(4, config.shadowY)}px)`;
+        shadowPlate.style.opacity = String(config.shadowOpacity / 100);
+        shadowPlate.style.background = config.shadowColor;
+      }
+    } else {
+      glass.style.clipPath = 'none';
+      glass.style.webkitClipPath = 'none';
+      glass.style.borderRadius = cssRadius(config.shape, W, H, config.cornerRadius);
+      glass.style.boxShadow = `${config.shadowX}px ${config.shadowY}px ${config.shadowBlur}px ${hex(config.shadowColor, config.shadowOpacity)}`;
+    }
+  }
+
+  function applyCosmetics() {
+    glass.style.background = hex(config.tintColor, config.tintOpacity);
+    glass.style.border = `${config.borderWidth}px solid ${hex(config.borderColor, config.borderOpacity)}`;
+  }
+
+  function rebuildFilter() {
+    const W = host.offsetWidth, H = host.offsetHeight;
+    if (W < 4 || H < 4) return;
+
+    const surfaceFn = SURFACE_FNS[config.bezelType] || CONVEX_SQUIRCLE;
+    const precomp = precomputeDisplacement(config.glassThickness, config.bezelWidth, surfaceFn, config.refractiveIndex);
+    const maxDisp = Math.max(...precomp.map(Math.abs)) || 1;
+
+    const quality = 2;
+    const effRad = config.shape === 'circle' ? Math.min(W, H) / 2
+                : config.shape === 'pill'    ? Math.min(W, H) / 2
+                : config.shape === 'triangle' ? 0
+                : config.cornerRadius * Math.min(W, H) / 2;
+
+    const dispMap = buildDisplacementMap(W, H, config.bezelWidth, precomp, config.shape, config.cornerRadius, config.squircleExponent, quality);
+    const specMap = buildSpecularMap(W, H, effRad, config.bezelWidth, config.shape, quality);
+    const dispURL = imageDataToDataURL(dispMap);
+    const specURL = imageDataToDataURL(specMap);
+    const scale = maxDisp * config.scaleRatio;
+
+    if (filterEl) filterEl.remove();
+    filterEl = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filterEl.setAttribute('id', filterId);
+    filterEl.innerHTML = `
+      <feGaussianBlur in="SourceGraphic" stdDeviation="${config.blur}" result="blurred"/>
+      <feImage href="${dispURL}" x="0" y="0" width="${W}" height="${H}" result="dmap"/>
+      <feDisplacementMap in="blurred" in2="dmap" scale="${scale}" xChannelSelector="R" yChannelSelector="G" result="disp"/>
+      <feColorMatrix in="disp" type="saturate" values="${config.specularSaturation}" result="dispSat"/>
+      <feImage href="${specURL}" x="0" y="0" width="${W}" height="${H}" result="spec"/>
+      <feComposite in="dispSat" in2="spec" operator="in" result="specSat"/>
+      <feComponentTransfer in="spec" result="specFaded">
+        <feFuncA type="linear" slope="${config.specularOpacity}"/>
+      </feComponentTransfer>
+      <feBlend in="specSat" in2="disp" mode="normal" result="withSat"/>
+      <feBlend in="specFaded" in2="withSat" mode="normal"/>
+    `;
+    SVG_DEFS.appendChild(filterEl);
+
+    const url = `url(#${filterId})`;
+    glass.style.backdropFilter = url;
+    glass.style.webkitBackdropFilter = url;
+  }
+
+  function fullRebuild() {
+    applyShape();
+    applyCosmetics();
+    rebuildFilter();
+  }
+
+  const ro = new ResizeObserver(() => fullRebuild());
+  ro.observe(host);
+  requestAnimationFrame(fullRebuild);
+
+  return {
+    getConfig: () => ({ ...config }),
+    update(patch) {
+      const needsFilterRebuild =
+        patch.bezelType !== undefined ||
+        patch.bezelWidth !== undefined ||
+        patch.glassThickness !== undefined ||
+        patch.refractiveIndex !== undefined ||
+        patch.scaleRatio !== undefined ||
+        patch.blur !== undefined ||
+        patch.specularOpacity !== undefined ||
+        patch.specularSaturation !== undefined ||
+        patch.shape !== undefined ||
+        patch.cornerRadius !== undefined ||
+        patch.squircleExponent !== undefined;
+      Object.assign(config, patch);
+      applyShape();
+      applyCosmetics();
+      if (needsFilterRebuild) rebuildFilter();
+    },
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DRAG — with click-vs-drag detection
+   Transform on host is safe: transform does NOT create a backdrop-root.
+   ═══════════════════════════════════════════════════════════════════ */
+
+function makeDraggable(host, onClick) {
+  // Transform is applied to the parent .shape-slot so the label tag moves with
+  // the glass. `transform` is safe on ancestors — it does NOT create a
+  // backdrop-root, so the glass element's backdrop-filter still works.
+  const slot = host.closest('.shape-slot') || host;
+
+  let tx = 0, ty = 0;
+  let sx = 0, sy = 0, stx = 0, sty = 0;
+  let dragging = false, moved = 0;
+
+  host.addEventListener('pointerdown', e => {
+    dragging = true;
+    moved = 0;
+    sx = e.clientX; sy = e.clientY;
+    stx = tx; sty = ty;
+    host.setPointerCapture(e.pointerId);
+    host.classList.add('dragging');
+    e.preventDefault();
+  });
+  host.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - sx;
+    const dy = e.clientY - sy;
+    moved = Math.max(moved, Math.hypot(dx, dy));
+    slot.style.transform = `translate(${stx + dx}px, ${sty + dy}px)`;
+  });
+  const endDrag = e => {
+    if (!dragging) return;
+    dragging = false;
+    host.classList.remove('dragging');
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    tx = stx + dx; ty = sty + dy;
+    // Click-vs-drag threshold: 5px
+    if (moved < 5 && typeof onClick === 'function') onClick();
+  };
+  host.addEventListener('pointerup', endDrag);
+  host.addEventListener('pointercancel', endDrag);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SHAPE DEFAULTS — each has a distinct character
+   ═══════════════════════════════════════════════════════════════════ */
+
+const DEFAULTS = {
+  square: {
+    shape: 'rectangle',
+    cornerRadius: 0.08,
+    bezelType: 'convex_squircle',
+    bezelWidth: 38,
+    glassThickness: 120,
+    refractiveIndex: 1.5,
+    scaleRatio: 1.0,
+    blur: 0.25,
+    specularOpacity: 0.45,
+    specularSaturation: 4,
+    tintColor: '#ffffff',
+    tintOpacity: 4,
+    borderWidth: 1.5,
+    borderColor: '#cccccc',
+    borderOpacity: 35,
+    shadowX: 0, shadowY: 8, shadowBlur: 32, shadowOpacity: 30, shadowColor: '#000000',
+  },
+  triangle: {
+    shape: 'triangle',
+    bezelType: 'lip',
+    bezelWidth: 44,
+    glassThickness: 150,
+    refractiveIndex: 1.7,
+    scaleRatio: 1.2,
+    blur: 0.3,
+    specularOpacity: 0.6,
+    specularSaturation: 7,
+    tintColor: '#ffffff',
+    tintOpacity: 3,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+    borderOpacity: 30,
+    shadowX: 0, shadowY: 10, shadowBlur: 30, shadowOpacity: 35, shadowColor: '#000000',
+  },
+  circle: {
+    shape: 'circle',
+    bezelType: 'convex_circle',
+    bezelWidth: 40,
+    glassThickness: 180,
+    refractiveIndex: 1.9,
+    scaleRatio: 1.3,
+    blur: 0.2,
+    specularOpacity: 0.5,
+    specularSaturation: 5,
+    tintColor: '#ffffff',
+    tintOpacity: 5,
+    borderWidth: 1.5,
+    borderColor: '#cccccc',
+    borderOpacity: 42,
+    shadowX: 0, shadowY: 8, shadowBlur: 36, shadowOpacity: 32, shadowColor: '#000000',
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   PANEL — live sliders + generate code
+   ═══════════════════════════════════════════════════════════════════ */
+
+function controlsFor(shape) {
+  const controls = [
+    { section: 'Bevel' },
+    { key: 'bezelType', type: 'select', label: 'Profile', options: [
+      ['convex_squircle', 'Squircle (Apple)'],
+      ['convex_circle',   'Circle'],
+      ['concave',         'Concave'],
+      ['lip',             'Lip'],
+    ]},
+    { key: 'bezelWidth',      type: 'range', label: 'Bezel Width',   min: 5,   max: 80,  step: 1,    unit: 'px' },
+    { key: 'glassThickness',  type: 'range', label: 'Thickness',     min: 10,  max: 400, step: 5 },
+    { key: 'refractiveIndex', type: 'range', label: 'IOR',           min: 1.0, max: 3.0, step: 0.05 },
+    { key: 'scaleRatio',      type: 'range', label: 'Scale',         min: 0.1, max: 2.0, step: 0.05 },
+
+    { section: 'Surface' },
+    { key: 'blur',               type: 'range', label: 'Blur',       min: 0, max: 5, step: 0.1, unit: 'px' },
+    { key: 'specularOpacity',    type: 'range', label: 'Specular',   min: 0, max: 1, step: 0.02 },
+    { key: 'specularSaturation', type: 'range', label: 'Saturation', min: 0, max: 20, step: 0.5 },
+
+    { section: 'Tint' },
+    { key: 'tintColor',   type: 'color', label: 'Color' },
+    { key: 'tintOpacity', type: 'range', label: 'Opacity', min: 0, max: 50, step: 1, unit: '%' },
+
+    { section: 'Border' },
+    { key: 'borderWidth',   type: 'range', label: 'Width',   min: 0, max: 5,    step: 0.5, unit: 'px' },
+    { key: 'borderColor',   type: 'color', label: 'Color' },
+    { key: 'borderOpacity', type: 'range', label: 'Opacity', min: 0, max: 100, step: 1,   unit: '%' },
+  ];
+  if (shape === 'square') {
+    controls.splice(1, 0, { key: 'cornerRadius', type: 'range', label: 'Corner Radius', min: 0, max: 0.5, step: 0.01 });
+  }
+  return controls;
+}
+
+function formatValue(val, cfg) {
+  if (typeof val === 'number') {
+    const decimals = cfg.step < 1 ? 2 : 0;
+    return val.toFixed(decimals) + (cfg.unit ? cfg.unit : '');
+  }
+  return String(val);
+}
+
+let currentGlass = null;
+let currentShape = null;
+
+function renderPanel(shape, glass) {
+  currentGlass = glass;
+  currentShape = shape;
+
+  const body = document.getElementById('panel-body');
+  body.innerHTML = '';
+
+  const kicker = document.getElementById('panel-kicker');
+  const title  = document.getElementById('panel-title');
+  const num = { square: '01', triangle: '02', circle: '03' }[shape];
+  kicker.textContent = `// shape ${num}`;
+  title.textContent  = shape.charAt(0).toUpperCase() + shape.slice(1);
+
+  const cfg = glass.getConfig();
+  const controls = controlsFor(shape);
+
+  controls.forEach(c => {
+    if (c.section) {
+      const sec = document.createElement('div');
+      sec.className = 'section-label';
+      sec.textContent = c.section;
+      body.appendChild(sec);
+      return;
+    }
+    const ctrl = document.createElement('div');
+    ctrl.className = 'control';
+
+    if (c.type === 'range') {
+      const head = document.createElement('div');
+      head.className = 'control-head';
+      head.innerHTML = `
+        <span class="control-label">${c.label}</span>
+        <span class="control-value">${formatValue(cfg[c.key], c)}</span>
+      `;
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = c.min; input.max = c.max; input.step = c.step;
+      input.value = cfg[c.key];
+      input.addEventListener('input', () => {
+        const v = parseFloat(input.value);
+        glass.update({ [c.key]: v });
+        head.querySelector('.control-value').textContent = formatValue(v, c);
+      });
+      ctrl.appendChild(head);
+      ctrl.appendChild(input);
+    } else if (c.type === 'select') {
+      const head = document.createElement('div');
+      head.className = 'control-head';
+      head.innerHTML = `<span class="control-label">${c.label}</span>`;
+      const sel = document.createElement('select');
+      c.options.forEach(([val, txt]) => {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = txt;
+        if (val === cfg[c.key]) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', () => glass.update({ [c.key]: sel.value }));
+      ctrl.appendChild(head);
+      ctrl.appendChild(sel);
+    } else if (c.type === 'color') {
+      const head = document.createElement('div');
+      head.className = 'control-head';
+      head.style.alignItems = 'center';
+      head.innerHTML = `<span class="control-label">${c.label}</span>`;
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.value = cfg[c.key];
+      input.style.cssText = `
+        width: 40px; height: 24px; padding: 0; cursor: pointer;
+        border: 1px solid var(--stroke-strong); border-radius: 3px; background: transparent;
+      `;
+      input.addEventListener('input', () => glass.update({ [c.key]: input.value }));
+      head.appendChild(input);
+      ctrl.appendChild(head);
+    }
+    body.appendChild(ctrl);
+  });
+
+  // Action buttons
+  const group = document.createElement('div');
+  group.className = 'btn-group';
+  body.appendChild(group);
+
+  const reset = document.createElement('button');
+  reset.className = 'btn';
+  reset.textContent = '↻   Reset to defaults';
+  reset.addEventListener('click', () => {
+    glass.update({ ...DEFAULTS[shape] });
+    renderPanel(shape, glass);
+  });
+  group.appendChild(reset);
+
+  const gen = document.createElement('button');
+  gen.className = 'btn btn-primary';
+  gen.textContent = '</>   Generate code';
+  gen.addEventListener('click', () => openCodeModal(shape, glass));
+  group.appendChild(gen);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CODE GENERATOR
+   ═══════════════════════════════════════════════════════════════════ */
+
+// Order we want props to appear in the generated JSX
+const CODE_ORDER = [
+  'shape', 'cornerRadius', 'squircleExponent',
+  'bezelType', 'bezelWidth', 'glassThickness', 'refractiveIndex', 'scaleRatio',
+  'blur', 'specularOpacity', 'specularSaturation',
+  'tintColor', 'tintOpacity',
+  'borderWidth', 'borderColor', 'borderOpacity',
+  'shadowX', 'shadowY', 'shadowBlur', 'shadowOpacity', 'shadowColor',
+];
+
+// Props irrelevant to a given shape are omitted
+function relevantForShape(key, shape) {
+  if (shape === 'triangle') {
+    if (key === 'cornerRadius' || key === 'squircleExponent') return false;
+  }
+  if (shape === 'circle' || shape === 'pill') {
+    if (key === 'cornerRadius' || key === 'squircleExponent') return false;
+  }
+  if (shape === 'rectangle' /* our 'square' slot */) {
+    if (key === 'squircleExponent') return false;
+  }
+  return true;
+}
+
+function formatJSXValue(val) {
+  if (typeof val === 'number') {
+    // Keep up to 2 decimals, strip trailing zeros
+    const s = Number.isInteger(val) ? String(val) : Number(val.toFixed(2)).toString();
+    return `{${s}}`;
+  }
+  if (typeof val === 'string') return `"${val}"`;
+  if (typeof val === 'boolean') return `{${val}}`;
+  return `{${JSON.stringify(val)}}`;
+}
+
+function highlight(code) {
+  // Very simple JSX-ish syntax highlighter for the modal display
+  return code
+    .replace(/(&)/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(\/\/[^\n]*)/g, '<span class="tk-comment">$1</span>')
+    .replace(/(&lt;\/?)([A-Za-z][\w.]*)/g, '$1<span class="tk-tag">$2</span>')
+    .replace(/([a-zA-Z][\w]*)(=)/g, '<span class="tk-attr">$1</span>$2')
+    .replace(/("[^"]*")/g, '<span class="tk-string">$1</span>')
+    .replace(/(\{)(-?\d+(?:\.\d+)?)(\})/g, '$1<span class="tk-num">$2</span>$3')
+    .replace(/([{}])/g, '<span class="tk-brace">$1</span>');
+}
+
+function generateCode(shape, glass) {
+  const cfg = glass.getConfig();
+  const lines = [
+    `// Fresnel — ${shape.charAt(0).toUpperCase() + shape.slice(1)}`,
+    `// Paste this into any React project that imports <Fresnel />`,
+    `<Fresnel`,
+  ];
+  CODE_ORDER.forEach(key => {
+    if (!(key in cfg)) return;
+    if (!relevantForShape(key, shape)) return;
+    lines.push(`  ${key}=${formatJSXValue(cfg[key])}`);
+  });
+  lines.push(`/>`);
+  return lines.join('\n');
+}
+
+function openCodeModal(shape, glass) {
+  const code = generateCode(shape, glass);
+  const out = document.getElementById('code-output');
+  out.innerHTML = highlight(code);
+  out.dataset.raw = code;
+  document.getElementById('code-modal').classList.add('open');
+}
+
+function closeCodeModal() {
+  document.getElementById('code-modal').classList.remove('open');
+  const btn = document.getElementById('copy-btn');
+  btn.classList.remove('copied');
+  btn.textContent = 'Copy code';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BACKGROUND CYCLER
+   Add new entries to BACKGROUNDS; the refresh button cycles through
+   them in order. Two stacked layers crossfade for a smooth swap.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const BACKGROUNDS = [
+  {
+    url: 'https://images.unsplash.com/photo-1526289034009-0240ddb68ce3?fm=jpg&q=85&w=3000&auto=format&fit=crop',
+    author: 'Samuel Scalzo',
+    authorUrl: 'https://unsplash.com/@scalzodesign',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1764831685497-3095f33bada2?fm=jpg&q=85&w=3000&auto=format&fit=crop',
+    author: 'Jakub Żerdzicki',
+    authorUrl: 'https://unsplash.com/@jakubzerdzicki',
+  },
+];
+
+let bgIndex = 0;
+let bgActive = 'a';  // which layer is currently visible
+let bgRotation = 0;  // cumulative rotation of the refresh icon
+
+// Preload every image once so subsequent swaps are instant
+BACKGROUNDS.forEach(b => { const img = new Image(); img.src = b.url; });
+
+function setBackground(index, animateIcon = false) {
+  const bg = BACKGROUNDS[index];
+  if (!bg) return;
+
+  const incomingId = bgActive === 'a' ? 'bg-b' : 'bg-a';
+  const outgoingId = bgActive === 'a' ? 'bg-a' : 'bg-b';
+  const incoming = document.getElementById(incomingId);
+  const outgoing = document.getElementById(outgoingId);
+
+  incoming.style.backgroundImage = `url('${bg.url}')`;
+
+  // Force a reflow so the browser picks up the image before we swap opacity
+  // (otherwise the transition can fire before the new image is decoded)
+  void incoming.offsetWidth;
+
+  incoming.classList.add('active');
+  outgoing.classList.remove('active');
+  bgActive = bgActive === 'a' ? 'b' : 'a';
+  bgIndex = index;
+
+  // Update credit link
+  const credit = document.getElementById('photo-credit-link');
+  credit.textContent = bg.author;
+  credit.href = bg.authorUrl;
+
+  if (animateIcon) {
+    bgRotation += 360;
+    const svg = document.querySelector('.refresh-btn svg');
+    if (svg) svg.style.transform = `rotate(${bgRotation}deg)`;
+  }
+}
+
+// Init with the first background (no icon animation)
+setBackground(0, false);
+
+// Refresh button cycles to the next one
+document.getElementById('refresh-bg').addEventListener('click', () => {
+  setBackground((bgIndex + 1) % BACKGROUNDS.length, true);
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════════ */
+
+const isChromium = /Chrome\//.test(navigator.userAgent) || /CriOS\//.test(navigator.userAgent);
+if (!isChromium) document.getElementById('browserNotice').classList.add('show');
+
+const glasses = {};
+if (isChromium) {
+  glasses.square   = makeGlass(document.getElementById('host-square'),   { ...DEFAULTS.square });
+  glasses.triangle = makeGlass(document.getElementById('host-triangle'), { ...DEFAULTS.triangle });
+  glasses.circle   = makeGlass(document.getElementById('host-circle'),   { ...DEFAULTS.circle });
+
+  // Make each draggable, and distinguish click-to-open-panel from drag.
+  ['square', 'triangle', 'circle'].forEach(shape => {
+    const host = document.getElementById('host-' + shape);
+    makeDraggable(host, () => openPanel(shape));
+  });
+}
+
+// Tag clicks open panel too
+document.querySelectorAll('.shape-slot .shape-tag').forEach(tag => {
+  tag.addEventListener('click', () => {
+    const shape = tag.closest('.shape-slot').dataset.shape;
+    openPanel(shape);
+  });
+});
+
+const panel = document.getElementById('panel');
+const scrim = document.getElementById('scrim');
+let activeShape = null;
+
+function openPanel(shape) {
+  if (!glasses[shape]) return;
+  activeShape = shape;
+  renderPanel(shape, glasses[shape]);
+  panel.classList.add('open');
+  scrim.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  document.querySelectorAll('.shape-slot').forEach(s => {
+    s.classList.toggle('active', s.dataset.shape === shape);
+  });
+}
+function closePanel() {
+  panel.classList.remove('open');
+  scrim.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  document.querySelectorAll('.shape-slot').forEach(s => s.classList.remove('active'));
+  activeShape = null;
+}
+
+document.getElementById('panel-close').addEventListener('click', closePanel);
+scrim.addEventListener('click', closePanel);
+
+// Modal wiring
+document.getElementById('modal-x').addEventListener('click', closeCodeModal);
+document.getElementById('modal-close').addEventListener('click', closeCodeModal);
+document.getElementById('code-modal').addEventListener('click', e => {
+  if (e.target.id === 'code-modal') closeCodeModal();
+});
+document.getElementById('copy-btn').addEventListener('click', async () => {
+  const raw = document.getElementById('code-output').dataset.raw;
+  try {
+    await navigator.clipboard.writeText(raw);
+    const b = document.getElementById('copy-btn');
+    b.classList.add('copied');
+    b.textContent = '✓  Copied';
+    setTimeout(() => {
+      b.classList.remove('copied');
+      b.textContent = 'Copy code';
+    }, 1800);
+  } catch (err) {
+    console.warn('Clipboard write failed', err);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const modal = document.getElementById('code-modal');
+  if (modal.classList.contains('open')) { closeCodeModal(); return; }
+  if (activeShape) closePanel();
+});
+</script>
+</body>
+</html>
