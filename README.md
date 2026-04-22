@@ -2,12 +2,13 @@
 
 A physically-accurate refractive glass component for the web. Per-pixel Snell's law via SVG displacement maps, applied as `backdrop-filter`. **Not a blur.**
 
+![Version](https://img.shields.io/badge/version-0.2.0--beta-orange)
 ![Chromium only](https://img.shields.io/badge/engine-Chromium-blue)
 ![React](https://img.shields.io/badge/React-18%2B-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**→ Live demo: [fresnel-js.timothymaurer.nl](https://fresnel-js.timothymaurer.nl)**
+**→ Live demo: [fresnel-js.timothymaurer.nl](https://fresnel-js.timothymaurer.nl)** · Full release notes in [`CHANGELOG.md`](./CHANGELOG.md)
 
 Named after [Augustin-Jean Fresnel](https://en.wikipedia.org/wiki/Augustin-Jean_Fresnel), the French physicist who figured out how light actually bends through curved surfaces — which is the math this component runs on every pixel of the bevel.
 
@@ -29,10 +30,10 @@ You can't fake that with a blur. It needs a per-pixel displacement field derived
 - **Five shapes** — `rectangle`, `squircle`, `circle`, `pill`, `triangle` (proper SDF, not a clip-path hack)
 - **Real refraction** — Snell's law per-pixel at the bevel, pre-computed into an RGBA displacement map
 - **Specular highlight** — separate overlay computed from bevel normal × light vector
-- **Vertex softening for triangles** — configurable smoothing where edges converge, so pointed shapes don't pool into dark focal hotspots
 - **Draggable** — optional, with pointer capture and click-vs-drag detection
 - **Safari/Firefox fallback** — degrades cleanly to a frosted `backdrop-filter` when the engine can't do SVG filters on backdrops
 - **Zero runtime dependencies** — just React
+- **Framer-ready** — [`framer/fresnel-framer-js.tsx`](./framer/fresnel-framer-js.tsx) is the same physics wrapped as a Framer code component, every setting exposed as a property control
 - **TypeScript-first** — fully typed
 
 ---
@@ -49,7 +50,7 @@ What Fresnel adds on top of that foundation:
 
 - **React + TypeScript port.** The upstream ships as a Vue 3 single-file component. Fresnel is a clean standalone React component with full type definitions, exported as a default — drop it into any React codebase from React 18 upward and it works. For the React ecosystem this is the first drop-in option using the kube.io method; previously you had to either rewrite it yourself or reach for WebGL-shader-based alternatives that solve a different problem.
 
-- **Triangle shape with proper SDF refraction.** The upstream supports rectangle, circle, pill, and squircle. Triangles aren't a "change the corner radius" case — there's no corner radius concept, the bevel has to track three edges with outward-pointing normals, and a point-in-triangle test replaces the corner-quadrant logic. That's ~80 lines of genuinely new physics code (`triVerts`, `nearestTriangleEdge`, `insideTriangle`, the centroid-sign trick for outward normals), not a port. And because three-edge convergence creates dark focal hotspots at the vertices (refraction vectors from adjacent edges stacking), there's a `cornerSoftness` parameter with a smootherstep falloff that attenuates displacement near each vertex — plus a matching squared edge-falloff on the specular map so highlights stay proportional to the rectangle's. If you have a use case for triangular glass — icons with directional emphasis, prism-like flourishes, pointed UI elements — this is the only implementation that does it with real refraction rather than clip-path fakery.
+- **Triangle shape with proper SDF refraction.** The upstream supports rectangle, circle, pill, and squircle. Triangles aren't a "change the corner radius" case — there's no corner radius concept, the bevel has to track three edges with outward-pointing normals, and a point-in-triangle test replaces the corner-quadrant logic. That's ~80 lines of genuinely new physics code (`triVerts`, `nearestTriangleEdge`, `insideTriangle`, the centroid-sign trick for outward normals), not a port. If you have a use case for triangular glass — icons with directional emphasis, prism-like flourishes, pointed UI elements — this is the only implementation that does it with real refraction rather than clip-path fakery.
 
 - **Interactive demo playground.** Click any shape in [the live demo](https://fresnel-js.timothymaurer.nl) to open a settings panel with sliders for every parameter, tweak until it looks right, then hit **Generate code** to get a ready-to-paste `<Fresnel />` JSX snippet with your exact values. Shapes are draggable so you can see how the refraction tracks against varied content. Backgrounds cycle across hand-picked photos. The upstream has a basic demo page; this is a full tuning environment and doubles as the integration handoff for anyone using the component.
 
@@ -74,7 +75,7 @@ import Fresnel from "./Fresnel"
     shape="rectangle"
     cornerRadius={0.08}
     bezelType="convex_squircle"
-    bezelWidth={12}
+    bezelWidth={36}
     glassThickness={120}
     refractiveIndex={1.5}
   />
@@ -86,6 +87,18 @@ The component sizes to `100% / 100%` of its parent — always wrap it in a sized
 ### The demo is standalone
 
 [`index.html`](./index.html) is a single HTML file with the entire physics engine ported to vanilla JS. No build, no React, no bundler. Open it in Chrome and it works. Use it as a reference implementation or as a sandbox for tuning values before committing them to your React project — the **Generate code** button on each shape's settings panel emits a ready-to-paste `<Fresnel />` JSX snippet with your current values.
+
+### Using it in Framer
+
+[`framer/fresnel-framer-js.tsx`](./framer/fresnel-framer-js.tsx) is the same physics wrapped as a Framer code component. Every prop on `<Fresnel />` is exposed as a property control in Framer's right panel — shape, bevel, IOR, tint, shadow, all of it.
+
+1. Grab the contents of `fresnel-framer-js.tsx` from the `framer/` folder of this repo.
+2. In your Framer project, open **Assets → Code → New Code Component**. Name it whatever you like — `Fresnel.js` works.
+3. Replace Framer's default scaffold with the contents of the file. Save with `⌘S`.
+4. Drag the new component from **Assets → Code** onto any frame that has content *behind* it (an image, gradient, or other UI — that's what gets refracted). Size it, tune props in the right panel.
+5. **Put content *inside* the glass (optional):** to render anything on top of the refraction (a label, icon, Stack), Framer needs that content to live on the artboard *outside* any page section. Create a Stack or other layer out there, then select your Fresnel component and use the **Content** property control to pick it. Framer shows a live preview inline.
+
+The same [backdrop-root caveat](#️-integration-gotcha-backdrop-root-ancestors) applies inside Framer — avoid parent frames with effects like filter, opacity below 100%, or clip shapes applied via Framer's effects panel. If the glass goes flat, that's usually why. For convenience, the [live demo](https://fresnel-js.timothymaurer.nl) has a <kbd>F</kbd> button in the header that summarizes these steps and links back to the file.
 
 ---
 
@@ -101,14 +114,13 @@ The component sizes to `100% / 100%` of its parent — always wrap it in a sized
 
 ### Bevel (the glass itself)
 
-| Prop                | Type                                                          | Default             | Notes                                                                 |
-| ------------------- | ------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------- |
-| `bezelType`         | `"convex_squircle" \| "convex_circle" \| "concave" \| "lip"`  | `"convex_squircle"` | Surface profile of the bevel                                          |
-| `bezelWidth`        | `number`                                                      | `12`                | Bezel width in px, measured inward                                    |
-| `glassThickness`    | `number`                                                      | `120`               | Virtual thickness — higher = more bending                             |
-| `refractiveIndex`   | `number`                                                      | `1.5`               | 1.5 = real glass, 1.9+ = exaggerated diamond                          |
-| `scaleRatio`        | `number`                                                      | `1`                 | Overall displacement multiplier                                       |
-| `cornerSoftness`    | `number`                                                      | `0.5`               | Attenuates refraction near triangle vertices. Triangle-only; 0–1      |
+| Prop                | Type                                                          | Default             | Notes                                          |
+| ------------------- | ------------------------------------------------------------- | ------------------- | ---------------------------------------------- |
+| `bezelType`         | `"convex_squircle" \| "convex_circle" \| "concave" \| "lip"`  | `"convex_squircle"` | Surface profile of the bevel                   |
+| `bezelWidth`        | `number`                                                      | `36`                | Bezel width in px, measured inward             |
+| `glassThickness`    | `number`                                                      | `120`               | Virtual thickness — higher = more bending      |
+| `refractiveIndex`   | `number`                                                      | `1.5`               | 1.5 = real glass, 1.9+ = exaggerated diamond   |
+| `scaleRatio`        | `number`                                                      | `1`                 | Overall displacement multiplier                 |
 
 ### Surface
 
@@ -160,7 +172,7 @@ Three things combine to produce the effect:
 
 **2. Snell's law, pre-computed.** For 128 sampled positions across the bevel, we calculate the surface normal, refract a vertical ray at `1/IOR`, and record how far it ends up laterally after traveling through `bezelWidth × f(x) + glassThickness` of glass. This gives a 1D lookup table of pixel displacements.
 
-**3. A displacement map.** For each pixel inside the shape, we find its distance to the nearest edge, look up the corresponding displacement from step 2, encode the X/Y offsets as RGB (with `128` as zero), and bake it into a PNG. For rounded shapes this uses the classic rect-with-rounded-corners logic. For triangles it uses a proper SDF with three edge distances and outward-pointing normals, plus a smootherstep `cornerSoftness` falloff near each vertex to prevent the dark focal hotspots that appear where adjacent edges' refraction vectors stack. An SVG `<feDisplacementMap>` reads the map and bends the backdrop accordingly, and a separate specular overlay (computed from `dot(bevelNormal, lightVector)`) adds the highlight.
+**3. A displacement map.** For each pixel inside the shape, we find its distance to the nearest edge, look up the corresponding displacement from step 2, encode the X/Y offsets as RGB (with `128` as zero), and bake it into a PNG. For rounded shapes this uses the classic rect-with-rounded-corners logic. For triangles it uses a proper SDF with three edge distances and outward-pointing normals. An SVG `<feDisplacementMap>` reads the map and bends the backdrop accordingly, and a separate specular overlay (computed from `dot(bevelNormal, lightVector)`) adds the highlight.
 
 ---
 
@@ -186,6 +198,19 @@ This is the #1 thing that silently breaks the effect when you drop it into an ex
 If any parent up the tree has one of these, your glass will look empty (it's refracting nothing — there's no content "behind" it from its perspective). **`transform` is NOT in this list** — it's safe.
 
 Fresnel sidesteps this internally by applying `border-radius`, `clip-path`, and `box-shadow` all directly on the glass element. But your parent components can still break it. If the effect looks dead, check your ancestors.
+
+---
+
+## Roadmap
+
+Next-version ideas, in rough priority order:
+
+- **Typography** — a `<FresnelText />` variant that refracts and bevels individual letterforms instead of a single masked shape. The displacement map becomes per-glyph, driven by the text's rasterized silhouette.
+- **Custom SVG shapes** — let callers pass an arbitrary `path` or inline SVG and build the displacement/specular maps from its SDF, so the same physics works for any outline (logos, icons, hand-drawn shapes) without hardcoded branches.
+- **Anisotropic specular** — directional highlight falloff for long rectangles and pills, where the current isotropic pass reads as slightly rubbery.
+- **Per-edge bezel profiles** — mix `convex_squircle` on the top edge with `concave` on the sides, for faux-lens effects.
+
+Open an issue if you want to help pull one of these forward, or if there's a use case the current version can't cover.
 
 ---
 

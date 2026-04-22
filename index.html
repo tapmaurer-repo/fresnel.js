@@ -76,13 +76,18 @@
   .header > * { pointer-events: auto; }
 
   .brand {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    box-sizing: border-box;
     font-family: var(--pixel);
     font-weight: 400;
     font-size: 13px;
+    line-height: 1;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--paper);
-    padding: 8px 14px 7px;
+    padding: 0 14px;
     background: var(--chip-bg);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -115,7 +120,7 @@
     gap: 8px;
   }
 
-  .refresh-btn, .github-btn, .coffee-btn, .info-btn {
+  .refresh-btn, .github-btn, .coffee-btn, .info-btn, .framer-btn {
     appearance: none;
     display: flex;
     align-items: center;
@@ -133,11 +138,11 @@
     text-decoration: none;
     transition: border-color 0.15s, color 0.15s;
   }
-  .refresh-btn:hover, .github-btn:hover, .coffee-btn:hover, .info-btn:hover {
+  .refresh-btn:hover, .github-btn:hover, .coffee-btn:hover, .info-btn:hover, .framer-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
   }
-  .refresh-btn svg, .github-btn svg, .coffee-btn svg, .info-btn svg {
+  .refresh-btn svg, .github-btn svg, .coffee-btn svg, .info-btn svg, .framer-btn svg {
     width: 14px;
     height: 14px;
   }
@@ -247,6 +252,23 @@
     letter-spacing: 0.1em;
     border-color: rgba(222, 79, 34, 0.5);
   }
+  .footer .coffee-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: none;
+    vertical-align: middle;
+  }
+  .footer .coffee-link svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+  .footer .coffee-link > span {
+    border-bottom: 1px dotted var(--dimmer);
+  }
+  .footer .coffee-link:hover { color: var(--accent); }
+  .footer .coffee-link:hover > span { border-bottom-color: var(--accent); }
 
   /* ─────────── PANEL ─────────── */
   .panel {
@@ -448,10 +470,21 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: scale(0.96);
-    transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+    /* No persistent transform or `transition: transform` on this element.
+       Either one causes Chrome to promote the card to its own compositor
+       layer — and combined with the scrim's backdrop-filter, that makes
+       scroll content inside paint a frame late (the "point 5 stagger").
+       The entrance scale is done via a one-shot animation below; once it
+       completes there's no transform on the element, the layer is
+       released, and scrolling is clean. */
   }
-  .modal-scrim.open .modal-card { transform: scale(1); }
+  @keyframes modal-enter {
+    from { transform: scale(0.96); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
+  .modal-scrim.open .modal-card {
+    animation: modal-enter 0.25s cubic-bezier(0.2, 0, 0, 1);
+  }
   .modal-header {
     display: flex;
     justify-content: space-between;
@@ -476,6 +509,7 @@
   .modal-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px 24px;
     scrollbar-width: thin;
     scrollbar-color: var(--stroke-strong) transparent;
@@ -610,6 +644,35 @@
     border-radius: 2px;
   }
 
+  .step-code {
+    margin: 10px 0 2px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--stroke);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.65;
+    color: var(--paper);
+    white-space: pre;
+    /* overflow: visible (default) so this <pre> stays in the normal paint
+       flow. Setting overflow-x: auto here — even with overflow-y pinned —
+       promotes the element into its own composited scroll layer in Chrome,
+       which paints a frame late during modal-body scroll and staggers the
+       content below (point 5 of the step list). The code example fits the
+       available width at desktop sizes; on very narrow viewports it may
+       spill, which is preferable to the scroll jank. */
+    overflow: visible;
+    tab-size: 2;
+  }
+  .step-code .tk-tag     { color: #c792ea; }
+  .step-code .tk-attr    { color: #82aaff; }
+  .step-code .tk-string  { color: #c3e88d; }
+  .step-code .tk-num     { color: #f78c6c; }
+  .step-code .tk-kw      { color: #c792ea; }
+  .step-code .tk-fn      { color: #82aaff; }
+  .step-code .tk-comment { color: var(--dimmer); font-style: italic; }
+
   .browser-notice {
     position: fixed;
     top: 50%; left: 50%;
@@ -670,6 +733,11 @@
           <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
         </svg>
       </a>
+      <button class="framer-btn" id="framer-open" type="button" title="Framer code component" aria-label="Framer code component">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M4 0h16v8h-8zM4 8h8l8 8H4zM4 16h8v8z"/>
+        </svg>
+      </button>
       <button class="info-btn" id="info-open" type="button" title="How to use" aria-label="How to use">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10"/>
@@ -677,15 +745,6 @@
           <line x1="12" x2="12.01" y1="8" y2="8"/>
         </svg>
       </button>
-      <a class="coffee-btn" href="https://www.paypal.com/paypalme/tapmaurer" target="_blank" rel="noopener" title="Buy me a coffee" aria-label="Buy me a coffee">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
-          <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
-          <line x1="6" x2="6" y1="2" y2="4"/>
-          <line x1="10" x2="10" y1="2" y2="4"/>
-          <line x1="14" x2="14" y1="2" y2="4"/>
-        </svg>
-      </a>
     </div>
   </header>
 
@@ -709,7 +768,16 @@
   <footer class="footer">
     <span>Made by <a href="https://timothymaurer.nl" target="_blank" rel="noopener">Tim Maurer</a></span>
     <span class="hint">Drag shapes · Click to tweak</span>
-    <span>Chromium only · <a href="https://github.com/tapmaurer-repo/fresnel.js" target="_blank" rel="noopener">GitHub</a></span>
+    <span>Chromium only · <a class="coffee-link" href="https://www.paypal.com/paypalme/tapmaurer" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
+        <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
+        <line x1="6" x2="6" y1="2" y2="4"/>
+        <line x1="10" x2="10" y1="2" y2="4"/>
+        <line x1="14" x2="14" y1="2" y2="4"/>
+      </svg>
+      <span>Buy me a coffee</span>
+    </a></span>
   </footer>
 
   <div class="panel-scrim" id="scrim"></div>
@@ -755,38 +823,90 @@
       <div class="modal-body">
         <ol class="steps">
           <li>
-            <b>Find a look you like.</b> Click any shape, play with the sliders until the glass feels right.
+            <b>Find a look you like.</b> Click any shape on this page, drag sliders in the panel on the right until the glass feels right.
             <span class="step-aside">Every setting is live — adjust IOR, bevel, tint, shadow, all in real time.</span>
           </li>
           <li>
-            <b>Generate the code.</b> Hit <code>&lt;/&gt; Generate code</code> at the bottom of the settings panel. A modal opens with a <code>&lt;Fresnel /&gt;</code> JSX snippet containing your exact values.
-            <span class="step-aside">Click "Copy code" — it's now on your clipboard.</span>
+            <b>Copy the JSX.</b> Hit <code>&lt;/&gt; Generate code</code> at the bottom of the settings panel. A modal opens with a <code>&lt;Fresnel /&gt;</code> snippet containing your exact values. Click <b>Copy code</b>.
           </li>
           <li>
-            <b>Get the component.</b> Grab <code>Fresnel.tsx</code> from the <a href="https://github.com/tapmaurer-repo/fresnel.js/blob/main/Fresnel.tsx" target="_blank" rel="noopener" style="color:var(--accent);">GitHub repo</a> and drop it anywhere in your project.
-            <span class="step-aside">Zero dependencies beyond React. No install step.</span>
+            <b>Download <code>Fresnel.tsx</code>.</b> Grab it from the <a href="https://github.com/tapmaurer-repo/fresnel.js/blob/main/Fresnel.tsx" target="_blank" rel="noopener" style="color:var(--accent);">GitHub repo</a> and save it somewhere in your React project — typically <code>src/components/Fresnel.tsx</code>.
+            <span class="step-aside">Zero runtime dependencies beyond React. No <code>npm install</code> step.</span>
           </li>
           <li>
-            <b>Import and use.</b> <code>import Fresnel from "./Fresnel"</code>, paste your generated snippet inside a sized container.
-            <span class="step-aside">Component sizes to <code>100%</code> of its parent — give the parent a width and height.</span>
-          </li>
-          <li>
-            <b>Put content behind it.</b> The glass refracts whatever is in the backdrop. Images, gradients, video, other components — anything works. Without a backdrop, the effect is invisible.
+            <b>Render it inside a sized container.</b> Import it at the top of any component file, then paste your snippet inside a <code>&lt;div&gt;</code> that has a width, a height, and something visible behind it:
+<pre class="step-code"><span class="tk-kw">import</span> Fresnel <span class="tk-kw">from</span> <span class="tk-string">"./Fresnel"</span>
+
+<span class="tk-kw">export default function</span> <span class="tk-fn">Hero</span>() {
+  <span class="tk-kw">return</span> (
+    &lt;<span class="tk-tag">div</span> <span class="tk-attr">style</span>={{
+      <span class="tk-attr">backgroundImage</span>: <span class="tk-string">"url('/photo.jpg')"</span>,
+      <span class="tk-attr">width</span>: <span class="tk-num">600</span>, <span class="tk-attr">height</span>: <span class="tk-num">400</span>,
+    }}&gt;
+      &lt;<span class="tk-tag">div</span> <span class="tk-attr">style</span>={{ <span class="tk-attr">width</span>: <span class="tk-num">280</span>, <span class="tk-attr">height</span>: <span class="tk-num">280</span> }}&gt;
+        &lt;<span class="tk-tag">Fresnel</span> <span class="tk-attr">shape</span>=<span class="tk-string">"rectangle"</span> <span class="tk-attr">bezelWidth</span>={<span class="tk-num">12</span>} /&gt;
+      &lt;/<span class="tk-tag">div</span>&gt;
+    &lt;/<span class="tk-tag">div</span>&gt;
+  )
+}</pre>
+            <span class="step-aside">The outer <code>div</code> holds the content being refracted (the photo). The inner <code>div</code> sets the glass size — Fresnel always fills <code>100% × 100%</code> of its parent.</span>
           </li>
         </ol>
 
         <div class="warning-callout">
-          <span class="warning-head">⚠ Heads up — ancestor gotchas</span>
-          If the glass looks empty or dead on screen, check the components above it in the tree. Any ancestor with
-          <code>filter</code>, <code>clip-path</code>, <code>opacity&lt;1</code>, <code>mask</code>, or <code>mix-blend-mode</code> creates a
-          <em>backdrop-root</em>, and the glass will refract nothing instead of the real page behind it.
+          <span class="warning-head">⚠ Heads up — gotchas</span>
+          <b>It's a React component, not a CSS class.</b> Plain HTML / Webflow / WordPress won't work — you'd have to adapt the physics pipeline yourself. <code>index.html</code> in the repo is a vanilla-JS reference, not a drop-in library.
           <br><br>
-          <b>Safe:</b> <code>transform</code>, <code>overflow</code>, <code>position</code>, <code>z-index</code>. These do not create a backdrop-root.
+          <b>Needs something behind it.</b> The glass is transparent and refractive — it bends whatever sits underneath it. If the parent's background is flat white, you'll see flat white. Photo, gradient, video — anything visible will do.
+          <br><br>
+          <b>Watch your ancestors.</b> Any ancestor with <code>filter</code>, <code>clip-path</code>, <code>opacity&lt;1</code>, <code>mask</code>, or <code>mix-blend-mode</code> creates a <em>backdrop-root</em>, and the glass will refract nothing instead of the real page behind it. <b>Safe:</b> <code>transform</code>, <code>overflow</code>, <code>position</code>, <code>z-index</code>.
         </div>
       </div>
       <div class="modal-footer">
         <button class="modal-close-btn" id="info-close">Got it</button>
         <a class="copy-btn" href="https://github.com/tapmaurer-repo/fresnel.js" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">Open the docs ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-scrim" id="framer-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-kicker">// framer users</span>
+          <span class="modal-title">Use Fresnel in Framer</span>
+        </div>
+        <button class="panel-close" id="framer-x" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin:0 0 18px;font-family:var(--sans);font-size:12.5px;line-height:1.55;color:var(--dim);">
+          There's a Framer-ready version in the repo at <code style="font-family:var(--mono);font-size:11px;color:var(--paper);background:rgba(255,255,255,.08);padding:1px 5px;border-radius:2px;">/framer/fresnel-framer-js.tsx</code> — same physics, wrapped as a code component. Every setting becomes a property control in Framer's right panel.
+        </p>
+        <ol class="steps">
+          <li>
+            <b>Grab the file.</b> Download or copy the contents of <code>fresnel-framer-js.tsx</code> from the repo (button below).
+          </li>
+          <li>
+            <b>New code component in Framer.</b> Open <code>Assets → Code</code> → <code>+</code> → <code>New Code Component</code>. Name it whatever you like — <code>Fresnel.js</code> works.
+          </li>
+          <li>
+            <b>Paste the full file.</b> Replace Framer's default scaffold with the TSX. Save with <code>⌘S</code>.
+          </li>
+          <li>
+            <b>Drag it onto a frame.</b> The component appears under <code>Assets → Code</code>. Drop it onto a frame that has content <i>behind</i> it — image, gradient, or other UI. That's what gets refracted through the glass. Tune props in the right panel.
+          </li>
+          <li>
+            <b>Put content <i>inside</i> the glass (optional).</b> To render anything on top of the refraction — a label, an icon, a Stack — Framer needs that content to live on the artboard <i>outside</i> any page section. Create a Stack or any other layer out there, then select your Fresnel component and use the <b>Content</b> property control to pick that layer. Framer shows a live preview inline.
+          </li>
+        </ol>
+        <div class="warning-callout">
+          <span class="warning-head">⚠ Same gotchas apply</span>
+          <b>Don't nest inside a parent with</b> <code>filter</code>, <code>clip-path</code>, <code>opacity&lt;1</code>, <code>mask</code>, or <code>mix-blend-mode</code>. Framer's own effects panel can apply these invisibly — if the glass goes flat, that's usually why. Check the parent frame's effects.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-close-btn" id="framer-close">Got it</button>
+        <a class="copy-btn" href="https://github.com/tapmaurer-repo/fresnel.js/blob/main/framer/fresnel-framer-js.tsx" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">Open on GitHub ↗</a>
       </div>
     </div>
   </div>
@@ -1295,15 +1415,15 @@ function makeDraggable(host, onClick) {
 const DEFAULTS = {
   square: {
     shape: 'rectangle',
-    cornerRadius: 0.08,
+    cornerRadius: 0.22,
     bezelType: 'convex_squircle',
-    bezelWidth: 12,
-    glassThickness: 120,
-    refractiveIndex: 1.5,
-    scaleRatio: 1.0,
-    blur: 0.25,
-    specularOpacity: 0.45,
-    specularSaturation: 2,
+    bezelWidth: 37,
+    glassThickness: 290,
+    refractiveIndex: 1.55,
+    scaleRatio: 1.05,
+    blur: 0.2,
+    specularOpacity: 0.54,
+    specularSaturation: 7.5,
     tintColor: '#ffffff',
     tintOpacity: 4,
     borderWidth: 1.5,
@@ -1741,8 +1861,20 @@ infoModal.addEventListener('click', e => {
   if (e.target.id === 'info-modal') closeInfoModal();
 });
 
+// Framer modal wiring
+const framerModal = document.getElementById('framer-modal');
+function openFramerModal()  { framerModal.classList.add('open'); }
+function closeFramerModal() { framerModal.classList.remove('open'); }
+document.getElementById('framer-open').addEventListener('click', openFramerModal);
+document.getElementById('framer-x').addEventListener('click', closeFramerModal);
+document.getElementById('framer-close').addEventListener('click', closeFramerModal);
+framerModal.addEventListener('click', e => {
+  if (e.target.id === 'framer-modal') closeFramerModal();
+});
+
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (framerModal.classList.contains('open')) { closeFramerModal(); return; }
   if (infoModal.classList.contains('open')) { closeInfoModal(); return; }
   const modal = document.getElementById('code-modal');
   if (modal.classList.contains('open')) { closeCodeModal(); return; }

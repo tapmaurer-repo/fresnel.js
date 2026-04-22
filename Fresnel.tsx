@@ -14,6 +14,7 @@
  *
  * @license    MIT
  * @copyright  (c) 2026 Tim Maurer
+ * @version    0.2.0-beta
  * @see        https://github.com/tapmaurer-repo/fresnel.js
  */
 
