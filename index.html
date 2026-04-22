@@ -951,21 +951,23 @@ function makeGlass(host, opts = {}) {
   const filterId = 'fresnel-' + (++filterCount);
   host.style.position = 'relative';
 
-  // Triangle: use a sibling shadow plate (since box-shadow gets clipped by clip-path)
-  let shadowPlate = null;
+  // Triangle shadow: render as a blurred, offset SVG polygon whose interior
+  // is then masked out, so the shadow only exists OUTSIDE the triangle
+  // silhouette. The previous approach (black clip-pathed plate underneath the
+  // glass) sat directly behind the glass and darkened anything refracting
+  // through the slightly-translucent tint — visible as a muddy interior face.
+  let shadowEl = null;
   if (config.shape === 'triangle') {
-    shadowPlate = document.createElement('div');
-    shadowPlate.style.cssText = `
-      position: absolute; inset: 0;
-      background: #000;
-      opacity: 0.3;
-      filter: blur(12px);
-      transform: translate(0, 10px);
+    shadowEl = document.createElement('div');
+    shadowEl.setAttribute('aria-hidden', 'true');
+    // Extend bounds so blur has room to spread outward without being clipped.
+    shadowEl.style.cssText = `
+      position: absolute;
+      left: -40px; top: -40px; right: -40px; bottom: -40px;
       pointer-events: none;
-      clip-path: ${TRI_CLIP};
-      -webkit-clip-path: ${TRI_CLIP};
+      overflow: visible;
     `;
-    host.appendChild(shadowPlate);
+    host.appendChild(shadowEl);
   }
 
   // The glass element — all styling lives here directly.
@@ -982,12 +984,45 @@ function makeGlass(host, opts = {}) {
       glass.style.clipPath = TRI_CLIP;
       glass.style.webkitClipPath = TRI_CLIP;
       glass.style.borderRadius = '0';
-      glass.style.boxShadow = 'none'; // shadow handled by sibling plate
-      if (shadowPlate) {
-        shadowPlate.style.filter = `blur(${Math.max(6, config.shadowBlur / 2)}px)`;
-        shadowPlate.style.transform = `translate(${config.shadowX}px, ${Math.max(4, config.shadowY)}px)`;
-        shadowPlate.style.opacity = String(config.shadowOpacity / 100);
-        shadowPlate.style.background = config.shadowColor;
+      glass.style.boxShadow = 'none'; // shadow handled by shadowEl
+      if (shadowEl) {
+        // Build a fresh SVG each time so size/offsets track correctly.
+        // The outer polygon is blurred + filled with shadowColor.
+        // The clip-path then removes everything inside the triangle itself,
+        // so only the outer halo (the actual drop shadow) remains.
+        const pad = 40;
+        const svgW = W + pad * 2;
+        const svgH = H + pad * 2;
+        const triPoints = `${pad + W / 2},${pad} ${pad + W},${pad + H} ${pad},${pad + H}`;
+        // Inner triangle coords (in 0–1 space) for the subtractive clip-path
+        // Everything OUTSIDE this polygon is kept; inside is clipped away.
+        // We use evenodd fill-rule: outer rect minus inner triangle = just the halo.
+        const opacity = (config.shadowOpacity / 100).toFixed(3);
+        const blur = Math.max(0.1, config.shadowBlur / 2);
+        shadowEl.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg"
+               width="${svgW}" height="${svgH}"
+               viewBox="0 0 ${svgW} ${svgH}"
+               style="position:absolute; left:0; top:0; overflow:visible;">
+            <defs>
+              <filter id="${filterId}-tshadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="${blur}"/>
+              </filter>
+              <clipPath id="${filterId}-tclip" clipPathUnits="userSpaceOnUse">
+                <path d="M 0 0 H ${svgW} V ${svgH} H 0 Z
+                         M ${triPoints} Z"
+                      fill-rule="evenodd"/>
+              </clipPath>
+            </defs>
+            <g clip-path="url(#${filterId}-tclip)"
+               transform="translate(${config.shadowX}, ${Math.max(2, config.shadowY)})">
+              <polygon points="${triPoints}"
+                       fill="${config.shadowColor}"
+                       opacity="${opacity}"
+                       filter="url(#${filterId}-tshadow)"/>
+            </g>
+          </svg>
+        `;
       }
     } else {
       glass.style.clipPath = 'none';
