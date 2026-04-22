@@ -36,6 +36,31 @@ You can't fake that with a blur. It needs a per-pixel displacement field derived
 
 ---
 
+## Lineage
+
+Fresnel stands on two predecessors — credit where it's due.
+
+**[Chris Feijoo's kube.io article][kube]** is the source of the *technique itself*. The insight that you can pre-compute Snell's-law refraction into an RGBA displacement map and feed it to an SVG `<feDisplacementMap>` as a `backdrop-filter` — that invention lives in that article. Every implementation of curved-bevel web glass you'll find traces back there, and this one is no exception. If you want to understand how this all works under the hood, that's the article to read.
+
+**[`mkj0kjay/vue-web-liquid-glass`][vue-repo]** was the first public implementation of the technique as a reusable component. Our physics engine — the four surface equations, the Snell's-law lookup table, the bezel-zone iteration with corner/edge branching for rounded rectangles — is functionally the same, because there's essentially one correct way to implement the article. Porting this to a new framework doesn't change the math.
+
+What Fresnel adds on top of that foundation:
+
+- **React + TypeScript port.** The upstream ships as a Vue 3 single-file component. Fresnel is a clean standalone React component with full type definitions, exported as a default — drop it into any React codebase from React 18 upward and it works. For the React ecosystem this is the first drop-in option using the kube.io method; previously you had to either rewrite it yourself or reach for WebGL-shader-based alternatives that solve a different problem.
+
+- **Triangle shape with proper SDF refraction.** The upstream supports rectangle, circle, pill, and squircle. Triangles aren't a "change the corner radius" case — there's no corner radius concept, the bevel has to track three edges with outward-pointing normals, and a point-in-triangle test replaces the corner-quadrant logic. That's ~80 lines of genuinely new physics code (`triVerts`, `nearestTriangleEdge`, `insideTriangle`, the centroid-sign trick for outward normals), not a port. If you have a use case for triangular glass — icons with directional emphasis, prism-like flourishes, pointed UI elements — this is the only implementation that does it with real refraction rather than clip-path fakery.
+
+- **Interactive demo playground.** Click any shape in [the live demo](https://fresnel-js.timothymaurer.nl) to open a settings panel with sliders for every parameter, tweak until it looks right, then hit **Generate code** to get a ready-to-paste `<Fresnel />` JSX snippet with your exact values. Shapes are draggable so you can see how the refraction tracks against varied content. Backgrounds cycle across hand-picked photos. The upstream has a basic demo page; this is a full tuning environment and doubles as the integration handoff for anyone using the component.
+
+- **Integration gotcha docs.** The [backdrop-root ancestors](#-integration-gotcha-backdrop-root-ancestors) section below documents the single most common reason this effect silently breaks when dropped into an existing codebase — a parent component somewhere up the tree has `filter`, `clip-path`, or `opacity < 1` and the glass goes blank. Not covered anywhere else, painful to rediscover.
+
+Short version: same physics engine, new component surface, one extra shape that required new physics, and a tuning environment built around it. MIT license upstream and downstream, lineage acknowledged, no confusion about who did what.
+
+[kube]: https://kube.io/blog/liquid-glass-css-svg/
+[vue-repo]: https://github.com/mkj0kjay/vue-web-liquid-glass
+
+---
+
 ## Install
 
 Copy [`Fresnel.tsx`](./Fresnel.tsx) into your project. That's the whole install.
@@ -59,7 +84,7 @@ The component sizes to `100% / 100%` of its parent — always wrap it in a sized
 
 ### The demo is standalone
 
-[`demo.html`](./demo.html) is a single HTML file with the entire physics engine ported to vanilla JS. No build, no React, no bundler. Open it in Chrome and it works. Use it as a reference implementation or as a sandbox for tuning values before committing them to your React project — the **Generate code** button on each shape's settings panel emits a ready-to-paste `<Fresnel />` JSX snippet with your current values.
+[`index.html`](./index.html) is a single HTML file with the entire physics engine ported to vanilla JS. No build, no React, no bundler. Open it in Chrome and it works. Use it as a reference implementation or as a sandbox for tuning values before committing them to your React project — the **Generate code** button on each shape's settings panel emits a ready-to-paste `<Fresnel />` JSX snippet with your current values.
 
 ---
 
@@ -164,14 +189,15 @@ Fresnel sidesteps this internally by applying `border-radius`, `clip-path`, and 
 
 ## Credits
 
-- **Chris Feijoo** — [*The SVG `<filter>` behind Apple's Liquid Glass*][kube]. The canonical writeup of the Snell's-law-into-displacement-map technique.
-- **[mkj0kjay/vue-web-liquid-glass][vue-repo]** — the Vue reference implementation this was ported from.
+See [Lineage](#lineage) above for the full story. Short list:
 
-[kube]: https://kube.io/blog/liquid-glass-css-svg/
-[vue-repo]: https://github.com/mkj0kjay/vue-web-liquid-glass
+- [Chris Feijoo — *The SVG `<filter>` behind Apple's Liquid Glass*][kube] — the technique
+- [`mkj0kjay/vue-web-liquid-glass`][vue-repo] — Vue 3 implementation this was ported from
 
 ---
 
 ## License
 
-[MIT](./LICENSE). Use it, ship it, modify it. A backlink to [timothymaurer.nl](https://timothymaurer.nl) is appreciated but not required.
+[MIT](./LICENSE). Use it, ship it, modify it.
+
+If this saved you time and you'd like to say thanks, [a coffee goes a long way](https://www.paypal.com/paypalme/tapmaurer) ☕. Not required — a backlink to [timothymaurer.nl](https://timothymaurer.nl) is equally appreciated.
